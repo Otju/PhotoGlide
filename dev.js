@@ -57,18 +57,45 @@ const getImageData = (folderName, imageName) => {
   const binary = raw.toString("binary");
   const exif = piexif.load(binary);
   const imageDescription = exif["0th"][TagValues.ImageIFD.ImageDescription];
-  return { imageData, imageDescription };
+  const imageDate = exif["Exif"][TagValues.ExifIFD.DateTimeOriginal];
+  return { imageData, imageDescription, imageDate };
 };
 
-const updateImageDescription = (folderName, imageName, newDescription) => {
+const updateImageMetaData = (
+  folderName,
+  imageName,
+  metadataCategory,
+  metadataTag,
+  newValue
+) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`;
   const raw = fs.readFileSync(path);
   const binary = raw.toString("binary");
   const exif = piexif.load(binary);
-  exif["0th"][TagValues.ImageIFD.ImageDescription] = newDescription;
+  exif[metadataCategory][metadataTag] = newValue;
   const exifBytes = piexif.dump(exif);
   const newData = piexif.insert(exifBytes, binary);
   fs.writeFileSync(path, Buffer.from(newData, "binary"));
+};
+
+const updateImageDescription = (folderName, imageName, newDescription) => {
+  updateImageMetaData(
+    folderName,
+    imageName,
+    "0th",
+    TagValues.ImageIFD.ImageDescription,
+    newDescription
+  );
+};
+
+const updateImageDate = (folderName, imageName, newDate) => {
+  updateImageMetaData(
+    folderName,
+    imageName,
+    "Exif",
+    TagValues.ExifIFD.DateTimeOriginal,
+    newDate
+  );
 };
 
 const createWindow = () => {
@@ -116,6 +143,10 @@ app.whenReady().then(async () => {
       return updateImageDescription(folderName, imageName, newDescription);
     }
   );
+
+  ipcMain.handle("updateImageDate", (event, folderName, imageName, newDate) => {
+    return updateImageDate(folderName, imageName, newDate);
+  });
 
   ipcMain.handle("moveImage", (event, fileName, startFolder, endFolder) => {
     return moveFile(fileName, startFolder, endFolder);

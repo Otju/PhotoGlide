@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
+import dayjs from "dayjs";
 
 const { ipcRenderer } = window.require("electron");
+
+const exifDateFormat = "YYYY:MM:DD HH:mm:ss";
+const inputDateFormat = "YYYY-MM-DDTHH:mm:ss";
 
 const folders = ref<{ [key: string]: string[] }>({});
 const files = ref<string[]>([]);
@@ -18,6 +22,7 @@ const ctxRef = ref<CanvasRenderingContext2D | null>(null);
 const isImage = ref<boolean>(false);
 const timer = ref<NodeJS.Timeout | null>(null);
 const description = ref<string>("");
+const captureDate = ref<string>("2000-01-01T00:00");
 const mouseRef = ref<{
   x: number;
   y: number;
@@ -55,13 +60,19 @@ const selectImage = async (fileIndex: number) => {
   const {
     imageData,
     imageDescription,
-  }: { imageData: string; imageDescription: string } = await ipcRenderer.invoke(
-    "getImage",
-    currentFolder.value,
-    files.value[index]
-  );
+    imageDate,
+  }: { imageData: string; imageDescription: string; imageDate: string } =
+    await ipcRenderer.invoke(
+      "getImage",
+      currentFolder.value,
+      files.value[index]
+    );
 
   description.value = imageDescription;
+  captureDate.value = dayjs(imageDate, exifDateFormat).format(inputDateFormat);
+
+  console.log(dayjs(imageDate, exifDateFormat).format(inputDateFormat));
+
   if (!imageData) {
     isImage.value = false;
     return;
@@ -92,6 +103,9 @@ const nextImage = () => {
   } else {
     imageIndex.value++;
   }
+
+  const canvas = canvasRef.value;
+  canvas?.focus();
 };
 
 const previousImage = () => {
@@ -100,6 +114,9 @@ const previousImage = () => {
   } else {
     imageIndex.value--;
   }
+
+  const canvas = canvasRef.value;
+  canvas?.focus();
 };
 
 const refreshFiles = async () => {
@@ -268,6 +285,17 @@ const handleTextAreaType = () => {
   }, 200);
 };
 
+const handleDateTimeChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const date = dayjs(target.value).format(exifDateFormat);
+  await ipcRenderer.invoke(
+    "updateImageDate",
+    currentFolder.value,
+    currentImage(),
+    date
+  );
+};
+
 window.addEventListener("resize", () => {
   drawImage({ pos: posRef.value, scale: zoomRef.value });
 });
@@ -363,22 +391,38 @@ const pan = (amount: { x: number; y: number }) => {
     >
       <
     </button>
-    <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl">
+    <button
+      @click="nextImage"
+      class="absolute abs-center-y right-4 text-3xl"
+      tabindex="4"
+    >
       >
     </button>
     <div
       class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full"
     >
-      <h3 class="bg-black p-2">Description</h3>
-      <div class="w-full flex justify-center px-40">
+      <div class="w-full flex flex-col justify-center px-40">
+        <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
         <textarea
-          class="w-full bg-black p-2"
-          tabindex="1"
+          class="w-full bg-black px-4 p-2 rounded-b-md rounded-r-md"
+          tabindex="2"
           @input="handleTextAreaType"
           v-model="description"
         ></textarea>
       </div>
-      <h3 class="bg-black p-2">Move item to Album</h3>
+
+      <div class="w-full flex flex-col justify-center px-40">
+        <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
+        <input
+          type="datetime-local"
+          class="w-full bg-black px-4 p-2 rounded-none rounded-b-md rounded-r-md"
+          tabindex="3"
+          @change="handleDateTimeChange"
+          v-model="captureDate"
+          step="1"
+        />
+      </div>
+
       <div class="flex flex-wrap gap-4">
         <button
           v-for="(folder, i) in Object.keys(folders)"
@@ -396,7 +440,7 @@ const pan = (amount: { x: number; y: number }) => {
       @mouseup="handleMouse"
       @mouseout="handleMouse"
       @mousemove="handleMouse"
-      tabindex="0"
+      tabindex="1"
     ></canvas>
   </main>
 </template>

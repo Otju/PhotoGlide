@@ -17,6 +17,7 @@
     "thing": "electron build.js"
   },
   "dependencies": {
+    "dayjs": "^1.11.13",
     "electron-squirrel-startup": "^1.0.0",
     "piexif-ts": "^2.1.0",
     "vue": "^3.4.21"
