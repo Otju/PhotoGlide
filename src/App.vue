@@ -16,6 +16,8 @@ const zoomRef = ref<number>(1);
 const posRef = ref<{ x: number; y: number }>({ x: 0, y: 0 });
 const ctxRef = ref<CanvasRenderingContext2D | null>(null);
 const isImage = ref<boolean>(false);
+const timer = ref<NodeJS.Timeout | null>(null);
+const description = ref<string>("");
 const mouseRef = ref<{
   x: number;
   y: number;
@@ -50,11 +52,16 @@ const selectImage = async (fileIndex: number) => {
     isImage.value = false;
     return;
   }
-  const { imageData }: { imageData: string } = await ipcRenderer.invoke(
+  const {
+    imageData,
+    imageDescription,
+  }: { imageData: string; imageDescription: string } = await ipcRenderer.invoke(
     "getImage",
     currentFolder.value,
     files.value[index]
   );
+
+  description.value = imageDescription;
   if (!imageData) {
     isImage.value = false;
     return;
@@ -246,6 +253,21 @@ const handleKeyPress = (event: KeyboardEvent) => {
   }
 };
 
+const handleTextAreaType = () => {
+  if (timer.value) {
+    clearTimeout(timer.value);
+  }
+
+  timer.value = setTimeout(async () => {
+    await ipcRenderer.invoke(
+      "updateImageDescription",
+      currentFolder.value,
+      currentImage(),
+      description.value
+    );
+  }, 200);
+};
+
 window.addEventListener("resize", () => {
   drawImage({ pos: posRef.value, scale: zoomRef.value });
 });
@@ -347,7 +369,16 @@ const pan = (amount: { x: number; y: number }) => {
     <div
       class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full"
     >
-      <h3 class="bg-black rounded-lg p-2">Move item to Album</h3>
+      <h3 class="bg-black p-2">Description</h3>
+      <div class="w-full flex justify-center px-40">
+        <textarea
+          class="w-full bg-black p-2"
+          tabindex="1"
+          @input="handleTextAreaType"
+          v-model="description"
+        ></textarea>
+      </div>
+      <h3 class="bg-black p-2">Move item to Album</h3>
       <div class="flex flex-wrap gap-4">
         <button
           v-for="(folder, i) in Object.keys(folders)"

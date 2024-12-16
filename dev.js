@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import fs from "fs";
+import piexif, { TagValues } from "piexif-ts";
 
 let defaultFolder = null;
 
@@ -49,6 +50,27 @@ const getFileNames = () => {
   return fileNames;
 };
 
+const getImageData = (folderName, imageName) => {
+  const path = `${defaultFolder}\\${folderName}\\${imageName}`;
+  const raw = fs.readFileSync(path);
+  const imageData = raw.toString("base64");
+  const binary = raw.toString("binary");
+  const exif = piexif.load(binary);
+  const imageDescription = exif["0th"][TagValues.ImageIFD.ImageDescription];
+  return { imageData, imageDescription };
+};
+
+const updateImageDescription = (folderName, imageName, newDescription) => {
+  const path = `${defaultFolder}\\${folderName}\\${imageName}`;
+  const raw = fs.readFileSync(path);
+  const binary = raw.toString("binary");
+  const exif = piexif.load(binary);
+  exif["0th"][TagValues.ImageIFD.ImageDescription] = newDescription;
+  const exifBytes = piexif.dump(exif);
+  const newData = piexif.insert(exifBytes, binary);
+  fs.writeFileSync(path, Buffer.from(newData, "binary"));
+};
+
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1000,
@@ -79,29 +101,31 @@ app.whenReady().then(async () => {
     }
   });
 
-  ipcMain.handle("getFileNames", async (event) => {
+  ipcMain.handle("getFileNames", (event) => {
     const fileNames = getFileNames();
     return fileNames;
   });
 
-  ipcMain.handle("getImage", async (event, folderName, imageName) => {
-    const path = `${defaultFolder}\\${folderName}\\${imageName}`;
-    const imageData = fs.readFileSync(path).toString("base64");
-    return { imageData };
+  ipcMain.handle("getImage", (event, folderName, imageName) => {
+    return getImageData(folderName, imageName);
   });
 
   ipcMain.handle(
-    "moveImage",
-    async (event, fileName, startFolder, endFolder) => {
-      return moveFile(fileName, startFolder, endFolder);
+    "updateImageDescription",
+    (event, folderName, imageName, newDescription) => {
+      return updateImageDescription(folderName, imageName, newDescription);
     }
   );
 
-  ipcMain.handle("createFolder", async (event, folderName) => {
+  ipcMain.handle("moveImage", (event, fileName, startFolder, endFolder) => {
+    return moveFile(fileName, startFolder, endFolder);
+  });
+
+  ipcMain.handle("createFolder", (event, folderName) => {
     fs.mkdirSync(`${defaultFolder}\\${folderName}`);
   });
 
-  ipcMain.handle("renameFolder", async (event, oldName, newName) => {
+  ipcMain.handle("renameFolder", (event, oldName, newName) => {
     fs.renameSync(
       `${defaultFolder}\\${oldName}`,
       `${defaultFolder}\\${newName}`
