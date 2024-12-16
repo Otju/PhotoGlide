@@ -3,19 +3,15 @@ import fs from "fs";
 
 let defaultFolder = null;
 
-const nonRawFileEndings = [".png", ".jpg", ".jpeg"];
+const imageFileEndings = [".png", ".jpg", ".jpeg"];
 
 const getFileEnding = (fileName) => {
   return fileName.slice(fileName.lastIndexOf("."));
 };
 
-const getFileBaseName = (fileName) => {
-  return fileName.slice(0, fileName.lastIndexOf("."));
-};
-
 const fileIsViewableImage = (fileName) => {
   const fileEnding = getFileEnding(fileName).toLowerCase();
-  return nonRawFileEndings.includes(fileEnding);
+  return imageFileEndings.includes(fileEnding);
 };
 
 const getFolders = () => {
@@ -32,18 +28,6 @@ const moveFile = (filename, startFolder, endFolder) => {
     console.log(
       `Successfully moved ${filename} from ${startFolder} to ${endFolder}`
     );
-  });
-};
-
-const moveAllVersionsOfImage = (filename, startFolder, endFolder) => {
-  const fileBaseName = getFileBaseName(filename);
-  const originalFolderPath = `${defaultFolder}\\${startFolder}`;
-  const allVersionsOfImage = fs
-    .readdirSync(originalFolderPath)
-    .filter((item) => getFileBaseName(item) === fileBaseName);
-  console.log(allVersionsOfImage);
-  allVersionsOfImage.forEach((version) => {
-    moveFile(version, startFolder, endFolder);
   });
 };
 
@@ -109,7 +93,7 @@ app.whenReady().then(async () => {
   ipcMain.handle(
     "moveImage",
     async (event, fileName, startFolder, endFolder) => {
-      return moveAllVersionsOfImage(fileName, startFolder, endFolder);
+      return moveFile(fileName, startFolder, endFolder);
     }
   );
 
