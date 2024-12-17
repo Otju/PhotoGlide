@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron"
+import { app, BrowserWindow } from 'electron'
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -6,17 +6,17 @@ const createWindow = () => {
     height: 600,
   })
 
-  win.loadFile("dist/index.html")
+  win.loadFile('dist/index.html')
 }
 
 app.whenReady().then(() => {
   createWindow()
 
-  app.on("activate", () => {
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit()
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
 })
