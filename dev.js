@@ -1,8 +1,11 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Menu } from "electron";
 import fs from "fs";
 import piexif, { TagValues } from "piexif-ts";
+import Store from "electron-store";
 
-let defaultFolder = null;
+const store = new Store();
+
+let defaultFolder = store.get("defaultFolder");
 
 const imageFileEndings = [".png", ".jpg", ".jpeg"];
 
@@ -108,14 +111,33 @@ const createWindow = () => {
     },
   });
   win.loadURL("http://localhost:5173/");
+
+  let menuTemplate = [
+    {
+      label: "File",
+      submenu: [{ label: "Select folder", click: setDefaultFolder }],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
 };
 
-app.whenReady().then(async () => {
+const setDefaultFolder = async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openDirectory"],
     title: "Select a folder for all your albums",
   });
-  defaultFolder = result.filePaths[0];
+  if (result.filePaths[0]) {
+    defaultFolder = result.filePaths[0];
+    store.set("defaultFolder", defaultFolder);
+  }
+};
+
+app.whenReady().then(async () => {
+  if (!defaultFolder) {
+    await setDefaultFolder();
+  }
 
   createWindow();
 
