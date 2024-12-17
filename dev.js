@@ -97,10 +97,34 @@ const createWindow = () => {
       label: 'File',
       submenu: [{ label: 'Select folder', click: setDefaultFolder }],
     },
+    {
+      label: 'View',
+      submenu: [
+        {
+          id: 'edit-mode',
+          label: 'Edit mode',
+          type: 'radio',
+          checked: true,
+          click: () => selectMode('edit-mode'),
+        },
+        {
+          id: 'album-mode',
+          label: 'Album mode',
+          type: 'radio',
+          click: () => selectMode('album-mode'),
+        },
+      ],
+    },
   ]
 
   const menu = Menu.buildFromTemplate(menuTemplate)
   Menu.setApplicationMenu(menu)
+
+  const selectMode = (mode) => {
+    const item = menu.getMenuItemById(mode)
+    item.checked = true
+    win.webContents.send('view-mode-change', mode)
+  }
 }
 
 const setDefaultFolder = async () => {

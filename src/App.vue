@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue"
-import dayjs from "dayjs"
+import { onMounted, ref, watch } from 'vue'
+import dayjs from 'dayjs'
 
-const { ipcRenderer } = window.require("electron")
+const { ipcRenderer } = window.require('electron')
 
-const exifDateFormat = "YYYY:MM:DD HH:mm:ss"
-const inputDateFormat = "YYYY-MM-DDTHH:mm:ss"
+const exifDateFormat = 'YYYY:MM:DD HH:mm:ss'
+const inputDateFormat = 'YYYY-MM-DDTHH:mm:ss'
 
 const folders = ref<{ [key: string]: string[] }>({})
 const files = ref<string[]>([])
 const imageIndex = ref<number>(-1)
-const currentFolder = ref<string>("")
+const currentFolder = ref<string>('')
 const showRename = ref<boolean>(false)
-const folderRenameName = ref<string>("")
+const folderRenameName = ref<string>('')
 const inputRef = ref<HTMLInputElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
@@ -21,8 +21,9 @@ const posRef = ref<{ x: number; y: number }>({ x: 0, y: 0 })
 const ctxRef = ref<CanvasRenderingContext2D | null>(null)
 const isImage = ref<boolean>(false)
 const timer = ref<NodeJS.Timeout | null>(null)
-const description = ref<string>("")
-const captureDate = ref<string>("2000-01-01T00:00")
+const description = ref<string>('')
+const captureDate = ref<string>('2000-01-01T00:00')
+const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const mouseRef = ref<{
   x: number
   y: number
@@ -51,19 +52,17 @@ const selectImage = async (fileIndex: number) => {
     canvas.width = window.innerWidth
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     // Draw text "No image"
-    ctx.font = "30px Arial"
-    ctx.fillStyle = "white"
-    ctx.fillText("No image", canvas.width / 2 - 50, canvas.height / 2)
+    ctx.font = '30px Arial'
+    ctx.fillStyle = 'white'
+    ctx.fillText('No image', canvas.width / 2 - 50, canvas.height / 2)
     isImage.value = false
     return
   }
   const { imageData, imageDescription, imageDate }: { imageData: string; imageDescription: string; imageDate: string } =
-    await ipcRenderer.invoke("getImage", currentFolder.value, files.value[index])
+    await ipcRenderer.invoke('getImage', currentFolder.value, files.value[index])
 
   description.value = imageDescription
   captureDate.value = dayjs(imageDate, exifDateFormat).format(inputDateFormat)
-
-  console.log(dayjs(imageDate, exifDateFormat).format(inputDateFormat))
 
   if (!imageData) {
     isImage.value = false
@@ -112,7 +111,7 @@ const previousImage = () => {
 }
 
 const refreshFiles = async () => {
-  folders.value = await ipcRenderer.invoke("getFileNames")
+  folders.value = await ipcRenderer.invoke('getFileNames')
 }
 
 onMounted(async () => {
@@ -125,7 +124,15 @@ onMounted(async () => {
     drawImage({ pos: posRef.value, scale: zoomRef.value })
   }
   if (!canvasRef.value) return
-  ctxRef.value = canvasRef.value.getContext("2d")
+  ctxRef.value = canvasRef.value.getContext('2d')
+
+  ipcRenderer.on('view-mode-change', (_: any, message: string) => {
+    if (message === 'edit-mode') {
+      viewMode.value = 'edit-mode'
+    } else if (message === 'album-mode') {
+      viewMode.value = 'album-mode'
+    }
+  })
 })
 
 watch([zoomRef, posRef], ([scale, pos]) => {
@@ -172,13 +179,13 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 }
 
 const moveItemToFolder = async (folder: string) => {
-  await ipcRenderer.invoke("moveImage", currentImage(), currentFolder.value, folder)
+  await ipcRenderer.invoke('moveImage', currentImage(), currentFolder.value, folder)
   await refreshFiles()
 }
 
 const moveItemToFolderWithIndex = async (index: number) => {
   const folder = Object.keys(folders.value)[index]
-  await ipcRenderer.invoke("moveImage", currentImage(), currentFolder.value, folder)
+  await ipcRenderer.invoke('moveImage', currentImage(), currentFolder.value, folder)
   await refreshFiles()
 }
 
@@ -187,13 +194,13 @@ const createNewAlbum = async () => {
   const lastNewAlbumIndex = Math.max(
     0,
     ...folderNames
-      .filter((name) => name.startsWith("New Album"))
-      .map((name) => parseInt(name.replace("New Album ", "")))
+      .filter((name) => name.startsWith('New Album'))
+      .map((name) => parseInt(name.replace('New Album ', '')))
       .filter((item) => item)
   )
   const newAlbumName = `New Album ${lastNewAlbumIndex + 1}`
 
-  await ipcRenderer.invoke("createFolder", newAlbumName)
+  await ipcRenderer.invoke('createFolder', newAlbumName)
   await refreshFiles()
 }
 
@@ -209,16 +216,16 @@ const handleRename = async () => {
     showRename.value = false
     return
   }
-  await ipcRenderer.invoke("renameFolder", currentFolder.value, folderRenameName.value)
+  await ipcRenderer.invoke('renameFolder', currentFolder.value, folderRenameName.value)
   await refreshFiles()
   showRename.value = false
   currentFolder.value = folderRenameName.value
 }
 
 const handleKeyPress = (event: KeyboardEvent) => {
-  if (event.key === "ArrowRight") {
+  if (event.key === 'ArrowRight') {
     nextImage()
-  } else if (event.key === "ArrowLeft") {
+  } else if (event.key === 'ArrowLeft') {
     previousImage()
   } else if (
     parseInt(event.key) &&
@@ -235,17 +242,17 @@ const handleTextAreaType = () => {
   }
 
   timer.value = setTimeout(async () => {
-    await ipcRenderer.invoke("updateImageDescription", currentFolder.value, currentImage(), description.value)
+    await ipcRenderer.invoke('updateImageDescription', currentFolder.value, currentImage(), description.value)
   }, 200)
 }
 
 const handleDateTimeChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const date = dayjs(target.value).format(exifDateFormat)
-  await ipcRenderer.invoke("updateImageDate", currentFolder.value, currentImage(), date)
+  await ipcRenderer.invoke('updateImageDate', currentFolder.value, currentImage(), date)
 }
 
-window.addEventListener("resize", () => {
+window.addEventListener('resize', () => {
   drawImage({ pos: posRef.value, scale: zoomRef.value })
 })
 
@@ -262,10 +269,10 @@ const handleScroll = (event: WheelEvent) => {
 
 const handleMouse = (event: MouseEvent) => {
   const mouse = mouseRef.value
-  if (event.type === "mousedown") {
+  if (event.type === 'mousedown') {
     mouse.button = true
   }
-  if (event.type === "mouseup" || event.type === "mouseout") {
+  if (event.type === 'mouseup' || event.type === 'mouseout') {
     mouse.button = false
   }
   mouse.oldX = mouse.x
@@ -314,46 +321,48 @@ const pan = (amount: { x: number; y: number }) => {
 
 <template>
   <main class="relative">
-    <div class="flex justify-center gap-4 absolute abs-center-x top-4">
-      <input v-if="showRename" type="text" v-model="folderRenameName" @blur="handleRename" ref="inputRef" />
-      <select v-else v-model="currentFolder" class="w-fit" @dblclick="handleShowRename">
-        <option v-for="folder in Object.keys(folders)" :value="folder">
-          {{ folder }}
-        </option>
-      </select>
-      <button @click="createNewAlbum">+</button>
-    </div>
-    <button @click="previousImage" class="absolute abs-center-y left-4 text-3xl"><</button>
-    <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="4">></button>
-    <div class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full">
-      <div class="w-full flex flex-col justify-center px-40">
-        <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
-        <textarea
-          class="w-full bg-black px-4 p-2 rounded-b-md rounded-r-md"
-          tabindex="2"
-          @input="handleTextAreaType"
-          v-model="description"
-        ></textarea>
+    <template v-if="viewMode === 'edit-mode'">
+      <div class="flex justify-center gap-4 absolute abs-center-x top-4">
+        <input v-if="showRename" type="text" v-model="folderRenameName" @blur="handleRename" ref="inputRef" />
+        <select v-else v-model="currentFolder" class="w-fit" @dblclick="handleShowRename">
+          <option v-for="folder in Object.keys(folders)" :value="folder">
+            {{ folder }}
+          </option>
+        </select>
+        <button @click="createNewAlbum">+</button>
       </div>
+      <button @click="previousImage" class="absolute abs-center-y left-4 text-3xl"><</button>
+      <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="4">></button>
+      <div class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full">
+        <div class="w-full flex flex-col justify-center px-40">
+          <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
+          <textarea
+            class="w-full bg-black px-4 p-2 rounded-b-md rounded-r-md"
+            tabindex="2"
+            @input="handleTextAreaType"
+            v-model="description"
+          ></textarea>
+        </div>
 
-      <div class="w-full flex flex-col justify-center px-40">
-        <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
-        <input
-          type="datetime-local"
-          class="w-full bg-black px-4 p-2 rounded-none rounded-b-md rounded-r-md"
-          tabindex="3"
-          @change="handleDateTimeChange"
-          v-model="captureDate"
-          step="1"
-        />
-      </div>
+        <div class="w-full flex flex-col justify-center px-40">
+          <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
+          <input
+            type="datetime-local"
+            class="w-full bg-black px-4 p-2 rounded-none rounded-b-md rounded-r-md"
+            tabindex="3"
+            @change="handleDateTimeChange"
+            v-model="captureDate"
+            step="1"
+          />
+        </div>
 
-      <div class="flex flex-wrap gap-4">
-        <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)">
-          {{ i + 1 }}. {{ folder }}
-        </button>
+        <div class="flex flex-wrap gap-4">
+          <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)">
+            {{ i + 1 }}. {{ folder }}
+          </button>
+        </div>
       </div>
-    </div>
+    </template>
     <canvas
       ref="canvasRef"
       @keydown="handleKeyPress"
