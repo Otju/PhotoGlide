@@ -141,7 +141,7 @@ watch([zoomRef, posRef], ([scale, pos]) => {
   drawImage({ scale, pos })
 })
 
-watch(description, () => {
+watch([description], () => {
   calculatedFontSize.value = null
 })
 
@@ -152,6 +152,10 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   const image = imageRef.value
   canvas.height = window.innerHeight
   canvas.width = window.innerWidth
+
+  if (canvas.height < 200 || canvas.width < 200) {
+    return
+  }
 
   const m = [1, 0, 0, 1, 0, 0] // current view transform
   m[3] = m[0] = scale
@@ -187,23 +191,29 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   const imageAngle = -0.08
   ctx.fillStyle = 'white'
 
-  const labelHeight = 200
+  const labelHeight = renderedWidth * 0.2
   const labelPercentageWidth = 0.8
   const labelWidth = renderedWidth * labelPercentageWidth
-  const labelOffset = 80
+  const labelOffset = renderedWidth * 0.1
 
-  const borderSize = 25
+  const borderSize = renderedWidth * 0.04
 
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(imageAngle)
   ctx.scale(scaleRatio, scaleRatio)
   ctx.translate(-x, -y)
-  ctx.fillRect(-borderSize, -borderSize, renderedWidth + 2 * borderSize, renderedHeight + 2 * borderSize)
+  ctx.translate(0, -renderedHeight * scaleRatio * 0.25)
+  ctx.fillRect(
+    -borderSize + xOffset,
+    -borderSize + yOffset,
+    renderedWidth + 2 * borderSize,
+    renderedHeight + 2 * borderSize
+  )
   ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
   ctx.fillRect(
-    -borderSize + ((1 - labelPercentageWidth) * renderedWidth) / 2,
-    renderedHeight + labelOffset,
+    -borderSize + xOffset + ((1 - labelPercentageWidth) * renderedWidth) / 2,
+    renderedHeight + yOffset + labelOffset,
     labelWidth + 2 * borderSize,
     labelHeight
   )
@@ -221,15 +231,14 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
     let lineHeight = fontSize * 1.2
 
     if (!calculatedFontSize.value) {
-      let textWidth = ctx.measureText(text).width
-
+      let i = 0
       while (lines.length * lineHeight > labelHeight - lineHeight) {
         fontSize -= 5
         lineHeight = fontSize * 1.2
         font = `${fontSize}px Arial`
         ctx.font = font
-        textWidth = ctx.measureText(text).width
         lines = split(ctx, text, font, labelWidth, true)
+        i++
       }
 
       calculatedFontSize.value = fontSize
@@ -245,7 +254,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.fillText(
         line,
         x,
-        renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
+        yOffset + renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
       )
       textYOffset += lineHeight
     }
@@ -330,6 +339,7 @@ const handleDateTimeChange = async (event: Event) => {
 
 window.addEventListener('resize', () => {
   drawImage({ pos: posRef.value, scale: zoomRef.value })
+  calculatedFontSize.value = null
 })
 
 const handleScroll = (event: WheelEvent) => {
