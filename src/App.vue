@@ -262,8 +262,30 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
         textYOffset += lineHeight
       }
     }
-    ctx.restore()
-    ctx.rotate(-imageAngle)
+
+    const tapeImage = document.getElementById('tapeImage') as HTMLImageElement
+
+    if (tapeImage) {
+      const imageScale = (renderedWidth / image.width) * 2
+
+      ctx.globalAlpha = 0.8
+
+      ctx.save()
+      ctx.translate(renderedWidth - 70 * imageScale + xOffset, yOffset - 250 * imageScale)
+      ctx.rotate(45 * (Math.PI / 180) + imageAngle)
+      ctx.scale(imageScale, imageScale)
+      ctx.drawImage(tapeImage, 0, 0)
+
+      ctx.restore()
+
+      ctx.translate(60 * imageScale + xOffset, renderedHeight + 240 * imageScale + yOffset)
+      ctx.rotate(5 * 45 * (Math.PI / 180) + imageAngle)
+      ctx.scale(imageScale, imageScale)
+      ctx.drawImage(tapeImage, 0, 0)
+    }
+
+    //ctx.restore()
+    //ctx.rotate(-imageAngle)
   }
 }
 
@@ -410,7 +432,7 @@ const pan = (amount: { x: number; y: number }) => {
 </script>
 
 <template>
-  <main class="relative">
+  <main class="relative parchment-background">
     <template v-if="viewMode === 'edit-mode'">
       <div class="flex justify-center gap-4 absolute abs-center-x top-4">
         <input v-if="showRename" type="text" v-model="folderRenameName" @blur="handleRename" ref="inputRef" />
@@ -464,4 +486,5 @@ const pan = (amount: { x: number; y: number }) => {
       tabindex="1"
     ></canvas>
   </main>
+  <img src="./assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
 </template>

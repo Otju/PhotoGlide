@@ -27,3 +27,9 @@
     @apply top-1/2 transform -translate-y-1/2;
   }
 }
+
+.parchment-background {
+  box-shadow: 2px 3px 20px black, 0 0 60px #8a4d0f inset;
+  background: #cccaa1;
+  filter: url(#wavy2);
+}
