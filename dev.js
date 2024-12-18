@@ -120,13 +120,13 @@ const createWindow = () => {
   const menu = Menu.buildFromTemplate(menuTemplate)
   Menu.setApplicationMenu(menu)
 
+  win.webContents.openDevTools()
+
   const selectMode = (mode) => {
     const item = menu.getMenuItemById(mode)
     item.checked = true
     win.webContents.send('view-mode-change', mode)
   }
-
-  win.webContents.openDevTools()
 }
 
 const setDefaultFolder = async () => {

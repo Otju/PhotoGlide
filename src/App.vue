@@ -45,6 +45,7 @@ const mouseRef = ref<{
 })
 
 const selectImage = async (fileIndex: number) => {
+  if (fileIndex < 0) return
   let index = fileIndex
   imageAngle.value = randomImageAngle()
   if (!files.value[index]) {
@@ -125,6 +126,14 @@ onMounted(async () => {
   await refreshFiles()
   currentFolder.value = Object.keys(folders.value)[0]
   imageIndex.value = 0
+
+  const fontKalam = new FontFace('Kalam', 'url(Kalam.ttf)')
+  document.fonts.add(fontKalam)
+  fontKalam.load()
+
+  const fontPermanentMarker = new FontFace('PermanentMarker', 'url(PermanentMarker.ttf)')
+  document.fonts.add(fontPermanentMarker)
+  fontPermanentMarker.load()
 
   imageRef.value = new Image()
   imageRef.value.onload = function () {
