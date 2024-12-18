@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import dayjs from 'dayjs'
+import { split } from 'canvas-hypertxt'
 
 const { ipcRenderer } = window.require('electron')
 
@@ -23,7 +24,7 @@ const isImage = ref<boolean>(false)
 const timer = ref<NodeJS.Timeout | null>(null)
 const description = ref<string>('')
 const captureDate = ref<string>('2000-01-01T00:00')
-const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
+const viewMode = ref<'album-mode' | 'edit-mode'>('album-mode')
 const mouseRef = ref<{
   x: number
   y: number
@@ -175,7 +176,69 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
     yOffset = (canvas.height - renderedHeight) / 2
   }
 
+  const scaleRatio = 0.6
+  const x = canvas.width / 2
+  const y = canvas.height / 2
+  const imageAngle = -0.08
+  ctx.fillStyle = 'white'
+
+  const labelHeight = 200
+  const labelPercentageWidth = 0.8
+  const labelWidth = renderedWidth * labelPercentageWidth
+  const labelOffset = 80
+
+  const borderSize = 25
+
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(imageAngle)
+  ctx.scale(scaleRatio, scaleRatio)
+  ctx.translate(-x, -y)
+  ctx.fillRect(-borderSize, -borderSize, renderedWidth + 2 * borderSize, renderedHeight + 2 * borderSize)
   ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
+  ctx.fillRect(
+    -borderSize + ((1 - labelPercentageWidth) * renderedWidth) / 2,
+    renderedHeight + labelOffset,
+    labelWidth + 2 * borderSize,
+    labelHeight
+  )
+  ctx.fillStyle = 'black'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
+
+  let fontSize = 120
+  let font = `${fontSize}px Arial`
+  ctx.font = font
+
+  const text = description.value
+
+  let textWidth = ctx.measureText(text).width
+  let lines = split(ctx, text, font, labelWidth, true)
+  let lineHeight = fontSize * 1.2
+
+  while (lines.length * lineHeight > labelHeight - lineHeight) {
+    fontSize -= 5
+    lineHeight = fontSize * 1.2
+    font = `${fontSize}px Arial`
+    ctx.font = font
+    textWidth = ctx.measureText(text).width
+    lines = split(ctx, text, font, labelWidth, true)
+  }
+
+  let textYOffset = 0
+  const lineCount = lines.length
+  const totalTextHeight = lineCount * lineHeight
+
+  for (const line of lines) {
+    ctx.fillText(
+      line,
+      x,
+      renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
+    )
+    textYOffset += lineHeight
+  }
+  ctx.restore()
+  ctx.rotate(-imageAngle)
 }
 
 const moveItemToFolder = async (folder: string) => {
