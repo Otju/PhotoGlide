@@ -8,6 +8,12 @@ const { ipcRenderer } = window.require('electron')
 const exifDateFormat = 'YYYY:MM:DD HH:mm:ss'
 const inputDateFormat = 'YYYY-MM-DDTHH:mm:ss'
 
+const possibleImageAngles = [-0.07, -0.06, -0.05, 0.05, 0.06, 0.07]
+
+const randomImageAngle = () => {
+  return possibleImageAngles[Math.floor(Math.random() * possibleImageAngles.length)]
+}
+
 const folders = ref<{ [key: string]: string[] }>({})
 const files = ref<string[]>([])
 const imageIndex = ref<number>(-1)
@@ -26,6 +32,7 @@ const description = ref<string>('')
 const captureDate = ref<string>('2000-01-01T00:00')
 const viewMode = ref<'album-mode' | 'edit-mode'>('album-mode')
 const calculatedFontSize = ref<number | null>(null)
+const imageAngle = ref<number>(randomImageAngle())
 const mouseRef = ref<{
   x: number
   y: number
@@ -42,6 +49,7 @@ const mouseRef = ref<{
 
 const selectImage = async (fileIndex: number) => {
   let index = fileIndex
+  imageAngle.value = randomImageAngle()
   if (!files.value[index]) {
     index = 0
   }
@@ -188,7 +196,6 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   const scaleRatio = 0.6
   const x = canvas.width / 2
   const y = canvas.height / 2
-  const imageAngle = -0.08
   ctx.fillStyle = 'white'
 
   const labelHeight = renderedWidth * 0.2
@@ -203,7 +210,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   } else {
     ctx.save()
     ctx.translate(x, y)
-    ctx.rotate(imageAngle)
+    ctx.rotate(imageAngle.value)
     ctx.scale(scaleRatio, scaleRatio)
     ctx.translate(-x, -y)
     ctx.translate(0, -renderedHeight * scaleRatio * 0.25)
@@ -228,20 +235,18 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 
     if (text) {
       let fontSize = calculatedFontSize.value || 120
-      let font = `${fontSize}px Arial`
+      let font = `${fontSize}px Kalam`
 
       let lines = split(ctx, text, font, labelWidth, true)
       let lineHeight = fontSize * 1.2
 
       if (!calculatedFontSize.value) {
-        let i = 0
-        while (lines.length * lineHeight > labelHeight - lineHeight) {
+        while (lines.length * lineHeight > labelHeight - 1.5 * lineHeight) {
           fontSize -= 5
           lineHeight = fontSize * 1.2
-          font = `${fontSize}px Arial`
+          font = `${fontSize}px Kalam`
           ctx.font = font
           lines = split(ctx, text, font, labelWidth, true)
-          i++
         }
 
         calculatedFontSize.value = fontSize
@@ -266,21 +271,28 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
     const tapeImage = document.getElementById('tapeImage') as HTMLImageElement
 
     if (tapeImage) {
-      const imageScale = (renderedWidth / image.width) * 2
+      let tapeScale = renderedWidth * 0.00025 * 2.75
+      const tapeImageWidth = tapeImage.width * tapeScale
+      const tapeImageHeight = tapeImage.height * tapeScale
 
       ctx.globalAlpha = 0.8
+      ctx.font = '65px PermanentMarker'
 
       ctx.save()
-      ctx.translate(renderedWidth - 70 * imageScale + xOffset, yOffset - 250 * imageScale)
-      ctx.rotate(45 * (Math.PI / 180) + imageAngle)
-      ctx.scale(imageScale, imageScale)
+      ctx.translate(renderedWidth / 2 - tapeImageWidth / 2 + xOffset, -tapeImageHeight * 1.15 + yOffset)
+      ctx.scale(tapeScale, tapeScale)
       ctx.drawImage(tapeImage, 0, 0)
+      ctx.fillText(dayjs(captureDate.value).format('D.M.YYYY'), tapeImage.width / 2 - 20, tapeImage.height / 4)
 
       ctx.restore()
 
-      ctx.translate(60 * imageScale + xOffset, renderedHeight + 240 * imageScale + yOffset)
-      ctx.rotate(5 * 45 * (Math.PI / 180) + imageAngle)
-      ctx.scale(imageScale, imageScale)
+      tapeScale = tapeScale * 0.8
+
+      ctx.translate(
+        renderedWidth / 2 - tapeImageWidth / 2 + xOffset,
+        renderedHeight + labelOffset + yOffset - 75 * tapeScale
+      )
+      ctx.scale(tapeScale, tapeScale)
       ctx.drawImage(tapeImage, 0, 0)
     }
 
