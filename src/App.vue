@@ -25,6 +25,7 @@ const timer = ref<NodeJS.Timeout | null>(null)
 const description = ref<string>('')
 const captureDate = ref<string>('2000-01-01T00:00')
 const viewMode = ref<'album-mode' | 'edit-mode'>('album-mode')
+const calculatedFontSize = ref<number | null>(null)
 const mouseRef = ref<{
   x: number
   y: number
@@ -140,6 +141,10 @@ watch([zoomRef, posRef], ([scale, pos]) => {
   drawImage({ scale, pos })
 })
 
+watch(description, () => {
+  calculatedFontSize.value = null
+})
+
 const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: number }) => {
   const canvas = canvasRef.value
   const ctx = ctxRef.value
@@ -206,36 +211,44 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
 
-  let fontSize = 120
-  let font = `${fontSize}px Arial`
-  ctx.font = font
-
   const text = description.value
 
-  let textWidth = ctx.measureText(text).width
-  let lines = split(ctx, text, font, labelWidth, true)
-  let lineHeight = fontSize * 1.2
+  if (text) {
+    let fontSize = calculatedFontSize.value || 120
+    let font = `${fontSize}px Arial`
 
-  while (lines.length * lineHeight > labelHeight - lineHeight) {
-    fontSize -= 5
-    lineHeight = fontSize * 1.2
-    font = `${fontSize}px Arial`
+    let lines = split(ctx, text, font, labelWidth, true)
+    let lineHeight = fontSize * 1.2
+
+    if (!calculatedFontSize.value) {
+      let textWidth = ctx.measureText(text).width
+
+      while (lines.length * lineHeight > labelHeight - lineHeight) {
+        fontSize -= 5
+        lineHeight = fontSize * 1.2
+        font = `${fontSize}px Arial`
+        ctx.font = font
+        textWidth = ctx.measureText(text).width
+        lines = split(ctx, text, font, labelWidth, true)
+      }
+
+      calculatedFontSize.value = fontSize
+    }
+
     ctx.font = font
-    textWidth = ctx.measureText(text).width
-    lines = split(ctx, text, font, labelWidth, true)
-  }
 
-  let textYOffset = 0
-  const lineCount = lines.length
-  const totalTextHeight = lineCount * lineHeight
+    let textYOffset = 0
+    const lineCount = lines.length
+    const totalTextHeight = lineCount * lineHeight
 
-  for (const line of lines) {
-    ctx.fillText(
-      line,
-      x,
-      renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
-    )
-    textYOffset += lineHeight
+    for (const line of lines) {
+      ctx.fillText(
+        line,
+        x,
+        renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
+      )
+      textYOffset += lineHeight
+    }
   }
   ctx.restore()
   ctx.rotate(-imageAngle)

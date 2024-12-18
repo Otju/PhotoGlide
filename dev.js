@@ -125,6 +125,8 @@ const createWindow = () => {
     item.checked = true
     win.webContents.send('view-mode-change', mode)
   }
+
+  win.webContents.openDevTools()
 }
 
 const setDefaultFolder = async () => {
