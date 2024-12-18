@@ -137,7 +137,7 @@ onMounted(async () => {
   })
 })
 
-watch([zoomRef, posRef], ([scale, pos]) => {
+watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
   drawImage({ scale, pos })
 })
 
@@ -198,69 +198,73 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 
   const borderSize = renderedWidth * 0.04
 
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.rotate(imageAngle)
-  ctx.scale(scaleRatio, scaleRatio)
-  ctx.translate(-x, -y)
-  ctx.translate(0, -renderedHeight * scaleRatio * 0.25)
-  ctx.fillRect(
-    -borderSize + xOffset,
-    -borderSize + yOffset,
-    renderedWidth + 2 * borderSize,
-    renderedHeight + 2 * borderSize
-  )
-  ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
-  ctx.fillRect(
-    -borderSize + xOffset + ((1 - labelPercentageWidth) * renderedWidth) / 2,
-    renderedHeight + yOffset + labelOffset,
-    labelWidth + 2 * borderSize,
-    labelHeight
-  )
-  ctx.fillStyle = 'black'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'top'
+  if (viewMode.value === 'edit-mode') {
+    ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
+  } else {
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(imageAngle)
+    ctx.scale(scaleRatio, scaleRatio)
+    ctx.translate(-x, -y)
+    ctx.translate(0, -renderedHeight * scaleRatio * 0.25)
+    ctx.fillRect(
+      -borderSize + xOffset,
+      -borderSize + yOffset,
+      renderedWidth + 2 * borderSize,
+      renderedHeight + 2 * borderSize
+    )
+    ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
+    ctx.fillRect(
+      -borderSize + xOffset + ((1 - labelPercentageWidth) * renderedWidth) / 2,
+      renderedHeight + yOffset + labelOffset,
+      labelWidth + 2 * borderSize,
+      labelHeight
+    )
+    ctx.fillStyle = 'black'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
 
-  const text = description.value
+    const text = description.value
 
-  if (text) {
-    let fontSize = calculatedFontSize.value || 120
-    let font = `${fontSize}px Arial`
+    if (text) {
+      let fontSize = calculatedFontSize.value || 120
+      let font = `${fontSize}px Arial`
 
-    let lines = split(ctx, text, font, labelWidth, true)
-    let lineHeight = fontSize * 1.2
+      let lines = split(ctx, text, font, labelWidth, true)
+      let lineHeight = fontSize * 1.2
 
-    if (!calculatedFontSize.value) {
-      let i = 0
-      while (lines.length * lineHeight > labelHeight - lineHeight) {
-        fontSize -= 5
-        lineHeight = fontSize * 1.2
-        font = `${fontSize}px Arial`
-        ctx.font = font
-        lines = split(ctx, text, font, labelWidth, true)
-        i++
+      if (!calculatedFontSize.value) {
+        let i = 0
+        while (lines.length * lineHeight > labelHeight - lineHeight) {
+          fontSize -= 5
+          lineHeight = fontSize * 1.2
+          font = `${fontSize}px Arial`
+          ctx.font = font
+          lines = split(ctx, text, font, labelWidth, true)
+          i++
+        }
+
+        calculatedFontSize.value = fontSize
       }
 
-      calculatedFontSize.value = fontSize
+      ctx.font = font
+
+      let textYOffset = 0
+      const lineCount = lines.length
+      const totalTextHeight = lineCount * lineHeight
+
+      for (const line of lines) {
+        ctx.fillText(
+          line,
+          x,
+          yOffset + renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
+        )
+        textYOffset += lineHeight
+      }
     }
-
-    ctx.font = font
-
-    let textYOffset = 0
-    const lineCount = lines.length
-    const totalTextHeight = lineCount * lineHeight
-
-    for (const line of lines) {
-      ctx.fillText(
-        line,
-        x,
-        yOffset + renderedHeight + labelHeight / 2 - totalTextHeight / 2 + lineHeight / 8 + labelOffset + textYOffset
-      )
-      textYOffset += lineHeight
-    }
+    ctx.restore()
+    ctx.rotate(-imageAngle)
   }
-  ctx.restore()
-  ctx.rotate(-imageAngle)
 }
 
 const moveItemToFolder = async (folder: string) => {
