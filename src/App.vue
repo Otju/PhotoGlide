@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import dayjs from 'dayjs'
 import { split } from 'canvas-hypertxt'
+import { splitAt } from './utils'
 
 const { ipcRenderer } = window.require('electron')
-
-const exifDateFormat = 'YYYY:MM:DD HH:mm:ss'
-const inputDateFormat = 'YYYY-MM-DDTHH:mm:ss'
 
 const possibleImageAngles = [-0.07, -0.06, -0.05, 0.05, 0.06, 0.07]
 
@@ -29,8 +26,8 @@ const ctxRef = ref<CanvasRenderingContext2D | null>(null)
 const isImage = ref<boolean>(false)
 const timer = ref<NodeJS.Timeout | null>(null)
 const description = ref<string>('')
-const captureDate = ref<string>('2000-01-01T00:00')
-const viewMode = ref<'album-mode' | 'edit-mode'>('album-mode')
+const captureDate = ref<string>('    :  :     :  :  ') // YYYY:MM:DD HH:mm:ss
+const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
 const mouseRef = ref<{
@@ -72,7 +69,7 @@ const selectImage = async (fileIndex: number) => {
     await ipcRenderer.invoke('getImage', currentFolder.value, files.value[index])
 
   description.value = imageDescription
-  captureDate.value = dayjs(imageDate, exifDateFormat).format(inputDateFormat)
+  captureDate.value = imageDate
 
   if (!imageData) {
     isImage.value = false
@@ -282,7 +279,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.translate(renderedWidth / 2 - tapeImageWidth / 2 + xOffset, -tapeImageHeight * 1.15 + yOffset)
       ctx.scale(tapeScale, tapeScale)
       ctx.drawImage(tapeImage, 0, 0)
-      ctx.fillText(dayjs(captureDate.value).format('D.M.YYYY'), tapeImage.width / 2 - 20, tapeImage.height / 4)
+      ctx.fillText(exifDateToPrettyDate(captureDate.value), tapeImage.width / 2 - 20, tapeImage.height / 4)
 
       ctx.restore()
 
@@ -299,6 +296,25 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
     //ctx.restore()
     //ctx.rotate(-imageAngle)
   }
+}
+
+const exifDateToPrettyDate = (exifDate: string) => {
+  const [date] = splitAt(10, exifDate).map((x) => x.replace(/ /g, ''))
+  const [year, month, day] = date.split(':')
+
+  if (year && month && day) {
+    return `${day}.${month}.${year}`
+  }
+
+  if (year && month) {
+    return `${month}.${year}`
+  }
+
+  if (year) {
+    return year
+  }
+
+  return ''
 }
 
 const moveItemToFolder = async (folder: string) => {
@@ -369,10 +385,8 @@ const handleTextAreaType = () => {
   }, 200)
 }
 
-const handleDateTimeChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const date = dayjs(target.value).format(exifDateFormat)
-  await ipcRenderer.invoke('updateImageDate', currentFolder.value, currentImage(), date)
+const handleDateTimeChange = async (newDate: string) => {
+  await ipcRenderer.invoke('updateImageDate', currentFolder.value, currentImage(), newDate)
 }
 
 window.addEventListener('resize', () => {
@@ -456,7 +470,7 @@ const pan = (amount: { x: number; y: number }) => {
         <button @click="createNewAlbum">+</button>
       </div>
       <button @click="previousImage" class="absolute abs-center-y left-4 text-3xl"><</button>
-      <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="4">></button>
+      <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="9">></button>
       <div class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full">
         <div class="w-full flex flex-col justify-center px-40">
           <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
@@ -470,14 +484,7 @@ const pan = (amount: { x: number; y: number }) => {
 
         <div class="w-full flex flex-col justify-center px-40">
           <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
-          <input
-            type="datetime-local"
-            class="w-full bg-black px-4 p-2 rounded-none rounded-b-md rounded-r-md"
-            tabindex="3"
-            @change="handleDateTimeChange"
-            v-model="captureDate"
-            step="1"
-          />
+          <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" />
         </div>
 
         <div class="flex flex-wrap gap-4">

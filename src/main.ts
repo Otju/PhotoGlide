@@ -4,7 +4,12 @@ import App from './App.vue'
 
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
+import DateTimeInput from './components/DateTimeInput.vue'
 
 dayjs.extend(customParseFormat)
 
-createApp(App).mount('#app')
+const app = createApp(App)
+
+app.component('DateTimeInput', DateTimeInput)
+
+app.mount('#app')
