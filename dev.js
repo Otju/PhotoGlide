@@ -95,7 +95,7 @@ const createWindow = () => {
   let menuTemplate = [
     {
       label: 'File',
-      submenu: [{ label: 'Select folder', click: setDefaultFolder }],
+      submenu: [{ label: 'Select folder containing albums', click: setDefaultFolder }],
     },
     {
       label: 'View',

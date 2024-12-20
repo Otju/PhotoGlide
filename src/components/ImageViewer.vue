@@ -4,7 +4,12 @@ import { split } from 'canvas-hypertxt'
 import { randomImageAngle, splitAt } from '../utils'
 
 const { ipcRenderer } = window.require('electron')
-const folders = ref<{ [key: string]: string[] }>({})
+
+const props = defineProps<{
+  folders: Folders
+  refreshFiles: () => Promise<void>
+}>()
+
 const files = ref<string[]>([])
 const imageIndex = ref<number>(-1)
 const currentFolder = ref<string>('')
@@ -77,8 +82,8 @@ const currentImage = () => {
   return files.value[imageIndex.value]
 }
 
-watch([currentFolder, folders], async ([folder], _) => {
-  files.value = folders.value[folder]
+watch([currentFolder, () => props.folders], async ([folder], _) => {
+  files.value = props.folders[folder]
   await selectImage(imageIndex.value)
   folderRenameName.value = folder
 })
@@ -111,13 +116,9 @@ const previousImage = () => {
   canvas?.focus()
 }
 
-const refreshFiles = async () => {
-  folders.value = await ipcRenderer.invoke('getFileNames')
-}
-
 onMounted(async () => {
-  await refreshFiles()
-  currentFolder.value = Object.keys(folders.value)[0]
+  await props.refreshFiles()
+  currentFolder.value = Object.keys(props.folders)[0]
   imageIndex.value = 0
 
   const fontKalam = new FontFace('Kalam', 'url(Kalam.ttf)')
@@ -321,17 +322,17 @@ const exifDateToPrettyDate = (exifDate: string) => {
 
 const moveItemToFolder = async (folder: string) => {
   await ipcRenderer.invoke('moveImage', currentImage(), currentFolder.value, folder)
-  await refreshFiles()
+  await props.refreshFiles()
 }
 
 const moveItemToFolderWithIndex = async (index: number) => {
-  const folder = Object.keys(folders.value)[index]
+  const folder = Object.keys(props.folders)[index]
   await ipcRenderer.invoke('moveImage', currentImage(), currentFolder.value, folder)
-  await refreshFiles()
+  await props.refreshFiles()
 }
 
 const createNewAlbum = async () => {
-  const folderNames = Object.keys(folders.value)
+  const folderNames = Object.keys(props.folders)
   const lastNewAlbumIndex = Math.max(
     0,
     ...folderNames
@@ -342,7 +343,7 @@ const createNewAlbum = async () => {
   const newAlbumName = `New Album ${lastNewAlbumIndex + 1}`
 
   await ipcRenderer.invoke('createFolder', newAlbumName)
-  await refreshFiles()
+  await props.refreshFiles()
 }
 
 const handleShowRename = () => {
@@ -358,7 +359,7 @@ const handleRename = async () => {
     return
   }
   await ipcRenderer.invoke('renameFolder', currentFolder.value, folderRenameName.value)
-  await refreshFiles()
+  await props.refreshFiles()
   showRename.value = false
   currentFolder.value = folderRenameName.value
 }
@@ -371,7 +372,7 @@ const handleKeyPress = (event: KeyboardEvent) => {
   } else if (
     parseInt(event.key) &&
     parseInt(event.key) > 0 &&
-    parseInt(event.key) <= Object.keys(folders.value).length
+    parseInt(event.key) <= Object.keys(props.folders).length
   ) {
     moveItemToFolderWithIndex(parseInt(event.key) - 1)
   }
@@ -507,5 +508,5 @@ const pan = (amount: { x: number; y: number }) => {
       tabindex="1"
     ></canvas>
   </main>
-  <img src="./assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
+  <img src="../assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
 </template>
