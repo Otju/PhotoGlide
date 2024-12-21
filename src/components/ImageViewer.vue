@@ -14,6 +14,8 @@ const props = defineProps<{
   closeAlbum: () => void
 }>()
 
+const defaultCaptureDate = '    :  :     :  :  '
+
 const files = ref<string[]>([])
 const imageIndex = ref<number>(-1)
 const folderRenameName = ref<string>('')
@@ -25,7 +27,7 @@ const ctxRef = ref<CanvasRenderingContext2D | null>(null)
 const isImage = ref<boolean>(false)
 const timer = ref<NodeJS.Timeout | null>(null)
 const description = ref<string>('')
-const captureDate = ref<string>('    :  :     :  :  ') // YYYY:MM:DD HH:mm:ss
+const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
 const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
@@ -67,9 +69,8 @@ const selectImage = async (fileIndex: number) => {
   }
   const { imageData, imageDescription, imageDate }: { imageData: string; imageDescription: string; imageDate: string } =
     await ipcRenderer.invoke('getImage', props.currentFolder, files.value[index])
-
-  description.value = imageDescription
-  captureDate.value = imageDate
+  description.value = imageDescription ?? ''
+  captureDate.value = imageDate ?? defaultCaptureDate
 
   if (!imageData) {
     isImage.value = false

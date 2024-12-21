@@ -56,8 +56,7 @@ const getImageData = (folderName, imageName) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
   const raw = fs.readFileSync(path)
   const imageData = raw.toString('base64')
-  const binary = raw.toString('binary')
-  const exif = piexif.load(binary)
+  const { exif } = exifFromRaw(raw)
   const imageDescription = exif['0th'][TagValues.ImageIFD.ImageDescription]
   const imageDate = exif['Exif'][TagValues.ExifIFD.DateTimeOriginal]
   return { imageData, imageDescription, imageDate }
@@ -65,14 +64,25 @@ const getImageData = (folderName, imageName) => {
 
 const loadExifData = (path) => {
   const raw = fs.readFileSync(path)
+  return exifFromRaw(raw)
+}
+
+const exifFromRaw = (raw) => {
   const binary = raw.toString('binary')
   const exif = piexif.load(binary)
-  return exif
+  if (!exif['0th']) {
+    exif['0th'] = {}
+  }
+  if (!exif['Exif']) {
+    exif['Exif'] = {}
+  }
+
+  return { exif, binary }
 }
 
 const updateImageMetaData = (folderName, imageName, metadataCategory, metadataTag, newValue) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
-  const exif = loadExifData(path)
+  const { exif, binary } = loadExifData(path)
   exif[metadataCategory][metadataTag] = newValue
   const exifBytes = piexif.dump(exif)
   const newData = piexif.insert(exifBytes, binary)
