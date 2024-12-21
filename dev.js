@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import fs from 'fs'
-import piexif, { TagValues } from 'piexif-ts'
 import Store from 'electron-store'
 import exiftool from 'node-exiftool'
 import exiftoolBin from 'dist-exiftool'
@@ -55,10 +54,15 @@ const getFileNames = () => {
   return fileNames
 }
 
-const getImageData = async (folderName, imageName) => {
+const getImage = async (folderName, imageName) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
   const raw = fs.readFileSync(path)
   const imageData = raw.toString('base64')
+  return imageData
+}
+
+const getImageMetadata = async (folderName, imageName) => {
+  const path = `${defaultFolder}\\${folderName}\\${imageName}`
 
   const metadata = await ep.readMetadata(path, ['-File:all'])
 
@@ -67,7 +71,7 @@ const getImageData = async (folderName, imageName) => {
   const imageDescription = imageMetadata?.ImageDescription
   const imageDate = imageMetadata?.DateTimeOriginal
 
-  return { imageData, imageDescription, imageDate }
+  return { imageDescription, imageDate }
 }
 
 const updateImageMetaData = async (folderName, imageName, newValue) => {
@@ -170,8 +174,12 @@ app.whenReady().then(async () => {
     return fileNames
   })
 
+  ipcMain.handle('getImageMetadata', async (event, folderName, imageName) => {
+    return await getImageMetadata(folderName, imageName)
+  })
+
   ipcMain.handle('getImage', async (event, folderName, imageName) => {
-    return await getImageData(folderName, imageName)
+    return await getImage(folderName, imageName)
   })
 
   ipcMain.handle('updateImageDescription', async (event, folderName, imageName, newDescription) => {

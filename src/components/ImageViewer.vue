@@ -67,10 +67,7 @@ const selectImage = async (fileIndex: number) => {
     isImage.value = false
     return
   }
-  const { imageData, imageDescription, imageDate }: { imageData: string; imageDescription: string; imageDate: string } =
-    await ipcRenderer.invoke('getImage', props.currentFolder, files.value[index])
-  description.value = imageDescription ?? ''
-  captureDate.value = imageDate ?? defaultCaptureDate
+  const imageData = await ipcRenderer.invoke('getImage', props.currentFolder, files.value[index])
 
   if (!imageData) {
     isImage.value = false
@@ -78,6 +75,15 @@ const selectImage = async (fileIndex: number) => {
   }
   imageRef.value.src = `data:image/jpg;base64,${imageData}`
   isImage.value = true
+
+  const { imageDescription, imageDate } = await ipcRenderer.invoke(
+    'getImageMetadata',
+    props.currentFolder,
+    files.value[index]
+  )
+
+  description.value = imageDescription ?? ''
+  captureDate.value = imageDate ?? defaultCaptureDate
 }
 
 const currentImage = () => {

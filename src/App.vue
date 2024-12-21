@@ -21,7 +21,7 @@ onMounted(async () => {
 
   for (const { folderName, file } of firstFiles) {
     if (!file) continue
-    const { imageData } = await ipcRenderer.invoke('getImage', folderName, file)
+    const imageData = await ipcRenderer.invoke('getImage', folderName, file)
     thumbnails.value[folderName] = imageData
   }
 })
