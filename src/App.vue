@@ -58,13 +58,14 @@ const closeAlbum = () => {
 <template>
   <main class="relative parchment-background min-h-[100vh] w-[100vw]">
     <div v-if="!currentFolder" class="flex flex-wrap gap-x-12 gap-y-8 py-8 px-24">
-      <template v-for="(_, folderName) in folders" :key="folderName">
+      <template v-for="(files, folderName) in folders" :key="folderName">
         <Album
           v-model="albumHasRenameInputOpen[folderName]"
           :folderName="folderName.toString()"
           :thumbnail="thumbnails[folderName]"
           :refreshFiles="refreshFiles"
           :openAlbum="openAlbum"
+          :fileCount="files.length"
         />
       </template>
       <div class="flex flex-col items-center text-center justify-center w-40">

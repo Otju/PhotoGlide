@@ -87,13 +87,6 @@ const updateImageDate = (folderName, imageName, newDate) => {
   updateImageMetaData(folderName, imageName, 'Exif', TagValues.ExifIFD.DateTimeOriginal, newDate)
 }
 
-const loadImageThumbnail = (folderName, imageName) => {
-  const path = `${defaultFolder}\\${folderName}\\${imageName}`
-  const exif = loadExifData(path)
-  const thumbnail = exif['thumbnail']
-  return btoa(thumbnail)
-}
-
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1000,
@@ -178,10 +171,6 @@ app.whenReady().then(async () => {
     return getImageData(folderName, imageName)
   })
 
-  ipcMain.handle('getImageThumbnail', (event, folderName, imageName) => {
-    return loadImageThumbnail(folderName, imageName)
-  })
-
   ipcMain.handle('updateImageDescription', (event, folderName, imageName, newDescription) => {
     return updateImageDescription(folderName, imageName, newDescription)
   })
@@ -200,6 +189,10 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('renameFolder', (event, oldName, newName) => {
     fs.renameSync(`${defaultFolder}\\${oldName}`, `${defaultFolder}\\${newName}`)
+  })
+
+  ipcMain.handle('deleteFolder', (event, folderName) => {
+    fs.rmdirSync(`${defaultFolder}\\${folderName}`, { recursive: true })
   })
 
   app.on('activate', () => {

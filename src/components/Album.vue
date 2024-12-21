@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FolderOpenIcon } from '@heroicons/vue/24/solid'
+import { FolderOpenIcon, XMarkIcon } from '@heroicons/vue/24/solid'
 import { ref, watch } from 'vue'
 
 const { ipcRenderer } = window.require('electron')
@@ -7,51 +7,70 @@ const { ipcRenderer } = window.require('electron')
 const props = defineProps<{
   folderName: string
   thumbnail: string | undefined
+  fileCount: number
   refreshFiles: () => Promise<void>
   openAlbum: (folderName: string) => void
 }>()
 
-const showRename = defineModel()
-
 const inputRef = ref<HTMLInputElement | null>(null)
 const newFolderName = ref(props.folderName)
-const isUpdating = ref(false)
+const showRename = ref(false)
+
+const externalShowRename = defineModel<boolean>()
 
 const showRenameInput = () => {
   showRename.value = true
 }
 
-defineExpose({
-  showRenameInput,
-})
+watch(
+  externalShowRename,
+  (value) => {
+    setTimeout(() => {
+      showRename.value = value || false
+    }, 100)
+  },
+  {
+    immediate: true,
+  }
+)
 
-watch(showRename, (show) => {
-  if (show) {
+watch(showRename, () => {
+  if (showRename.value) {
     setTimeout(() => {
       inputRef.value?.focus()
     }, 0)
   }
 })
 
-watch(
-  () => props.folderName,
-  () => {
-    isUpdating.value = false
-  }
-)
-
 const handleRename = async () => {
-  if (isUpdating.value) {
-    return
-  }
-  if (props.folderName === newFolderName.value || !newFolderName.value) {
+  setTimeout(async () => {
+    if (props.folderName === newFolderName.value || !newFolderName.value) {
+      showRename.value = false
+      return
+    }
+
+    await ipcRenderer.invoke('renameFolder', props.folderName, newFolderName.value)
+    await props.refreshFiles()
     showRename.value = false
-    return
+  }, 100)
+}
+
+const blurInput = () => {
+  inputRef.value?.blur()
+}
+
+const handleDelete = async () => {
+  if (props.fileCount > 0) {
+    const response = confirm(
+      `Are you sure you want to delete this album? This will PERMANETELY DELETE ALL ${props.fileCount} IMAGES in the album.`
+    )
+    if (!response) {
+      return
+    }
   }
-  isUpdating.value = true
-  await ipcRenderer.invoke('renameFolder', props.folderName, newFolderName.value)
+
+  await ipcRenderer.invoke('deleteFolder', props.folderName)
   await props.refreshFiles()
-  showRename.value = false
 }
 </script>
 
@@ -65,6 +84,9 @@ const handleRename = async () => {
         class="absolute w-20 bottom-11 left-6 -rotate-[20deg]"
       />
       <FolderOpenIcon class="w-full absolute" style="clip-path: inset(50px 0px 0 0px)" />
+      <button v-if="showRename" class="absolute top-0 -right-2 bg-transparent p-0">
+        <XMarkIcon class="text-red-600 size-7 z-100" @click.prevent.stop="handleDelete" />
+      </button>
     </a>
     <h2
       v-if="!showRename"
@@ -81,7 +103,7 @@ const handleRename = async () => {
       v-model="newFolderName"
       ref="inputRef"
       @blur="handleRename"
-      @keydown.enter="handleRename"
+      @keydown.enter="blurInput"
     />
   </div>
 </template>
