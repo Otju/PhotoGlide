@@ -20,9 +20,10 @@
     "@heroicons/vue": "^2.2.0",
     "canvas-hypertxt": "^1.0.3",
     "dayjs": "^1.11.13",
+    "dist-exiftool": "^10.53.0",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^10.0.0",
-    "piexif-ts": "^2.1.0",
+    "node-exiftool": "^2.3.0",
     "vue": "^3.4.21"
   },
   "main": "build.js",

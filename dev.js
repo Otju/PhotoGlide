@@ -2,7 +2,10 @@ import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import fs from 'fs'
 import piexif, { TagValues } from 'piexif-ts'
 import Store from 'electron-store'
-import { strict } from 'assert'
+import exiftool from 'node-exiftool'
+import exiftoolBin from 'dist-exiftool'
+
+const ep = new exiftool.ExiftoolProcess(exiftoolBin)
 
 const store = new Store()
 
@@ -52,52 +55,40 @@ const getFileNames = () => {
   return fileNames
 }
 
-const getImageData = (folderName, imageName) => {
+const getImageData = async (folderName, imageName) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
   const raw = fs.readFileSync(path)
   const imageData = raw.toString('base64')
-  const { exif } = exifFromRaw(raw)
-  const imageDescription = exif['0th'][TagValues.ImageIFD.ImageDescription]
-  const imageDate = exif['Exif'][TagValues.ExifIFD.DateTimeOriginal]
+
+  const metadata = await ep.readMetadata(path, ['-File:all'])
+
+  const imageMetadata = metadata?.data[0]
+
+  const imageDescription = imageMetadata?.ImageDescription
+  const imageDate = imageMetadata?.DateTimeOriginal
+
   return { imageData, imageDescription, imageDate }
 }
 
-const loadExifData = (path) => {
-  const raw = fs.readFileSync(path)
-  return exifFromRaw(raw)
-}
-
-const exifFromRaw = (raw) => {
-  const binary = raw.toString('binary')
-  const exif = piexif.load(binary)
-  if (!exif['0th']) {
-    exif['0th'] = {}
-  }
-  if (!exif['Exif']) {
-    exif['Exif'] = {}
-  }
-
-  return { exif, binary }
-}
-
-const updateImageMetaData = (folderName, imageName, metadataCategory, metadataTag, newValue) => {
+const updateImageMetaData = async (folderName, imageName, newValue) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
-  const { exif, binary } = loadExifData(path)
-  exif[metadataCategory][metadataTag] = newValue
-  const exifBytes = piexif.dump(exif)
-  const newData = piexif.insert(exifBytes, binary)
-  fs.writeFileSync(path, Buffer.from(newData, 'binary'))
+  try {
+    // n flags skips input validation, e.g. allows incomplete dates
+    await ep.writeMetadata(path, newValue, ['overwrite_original', 'n'])
+  } catch (e) {
+    console.error(e)
+  }
 }
 
-const updateImageDescription = (folderName, imageName, newDescription) => {
-  updateImageMetaData(folderName, imageName, '0th', TagValues.ImageIFD.ImageDescription, newDescription)
+const updateImageDescription = async (folderName, imageName, newDescription) => {
+  await updateImageMetaData(folderName, imageName, { ImageDescription: newDescription })
 }
 
-const updateImageDate = (folderName, imageName, newDate) => {
-  updateImageMetaData(folderName, imageName, 'Exif', TagValues.ExifIFD.DateTimeOriginal, newDate)
+const updateImageDate = async (folderName, imageName, newDate) => {
+  await updateImageMetaData(folderName, imageName, { DateTimeOriginal: newDate })
 }
 
-const createWindow = () => {
+const createWindow = async () => {
   const win = new BrowserWindow({
     width: 1000,
     height: 800,
@@ -107,6 +98,8 @@ const createWindow = () => {
     },
   })
   win.loadURL('http://localhost:5173/')
+
+  await ep.open()
 
   let menuTemplate = [
     {
@@ -177,15 +170,15 @@ app.whenReady().then(async () => {
     return fileNames
   })
 
-  ipcMain.handle('getImage', (event, folderName, imageName) => {
-    return getImageData(folderName, imageName)
+  ipcMain.handle('getImage', async (event, folderName, imageName) => {
+    return await getImageData(folderName, imageName)
   })
 
-  ipcMain.handle('updateImageDescription', (event, folderName, imageName, newDescription) => {
+  ipcMain.handle('updateImageDescription', async (event, folderName, imageName, newDescription) => {
     return updateImageDescription(folderName, imageName, newDescription)
   })
 
-  ipcMain.handle('updateImageDate', (event, folderName, imageName, newDate) => {
+  ipcMain.handle('updateImageDate', async (event, folderName, imageName, newDate) => {
     return updateImageDate(folderName, imageName, newDate)
   })
 
