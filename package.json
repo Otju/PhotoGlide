@@ -17,6 +17,7 @@
     "thing": "electron build.js"
   },
   "dependencies": {
+    "@heroicons/vue": "^2.2.0",
     "canvas-hypertxt": "^1.0.3",
     "dayjs": "^1.11.13",
     "electron-squirrel-startup": "^1.0.0",

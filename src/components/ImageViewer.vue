@@ -2,20 +2,21 @@
 import { onMounted, ref, watch } from 'vue'
 import { split } from 'canvas-hypertxt'
 import { randomImageAngle, splitAt } from '../utils'
+import DateTimeInput from './DateTimeInput.vue'
+import { ArrowTurnUpLeftIcon } from '@heroicons/vue/24/solid'
 
 const { ipcRenderer } = window.require('electron')
 
 const props = defineProps<{
   folders: Folders
+  currentFolder: string
   refreshFiles: () => Promise<void>
+  closeAlbum: () => void
 }>()
 
 const files = ref<string[]>([])
 const imageIndex = ref<number>(-1)
-const currentFolder = ref<string>('')
-const showRename = ref<boolean>(false)
 const folderRenameName = ref<string>('')
-const inputRef = ref<HTMLInputElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const zoomRef = ref<number>(1)
@@ -49,7 +50,7 @@ const selectImage = async (fileIndex: number) => {
   if (!files.value[index]) {
     index = 0
   }
-  if (!currentFolder.value || !imageRef.value) return
+  if (!props.currentFolder || !imageRef.value) return
   if (!files.value[index]) {
     const canvas = canvasRef.value
     const ctx = ctxRef.value
@@ -65,7 +66,7 @@ const selectImage = async (fileIndex: number) => {
     return
   }
   const { imageData, imageDescription, imageDate }: { imageData: string; imageDescription: string; imageDate: string } =
-    await ipcRenderer.invoke('getImage', currentFolder.value, files.value[index])
+    await ipcRenderer.invoke('getImage', props.currentFolder, files.value[index])
 
   description.value = imageDescription
   captureDate.value = imageDate
@@ -82,7 +83,7 @@ const currentImage = () => {
   return files.value[imageIndex.value]
 }
 
-watch([currentFolder, () => props.folders], async ([folder], _) => {
+watch([() => props.currentFolder, () => props.folders], async ([folder], _) => {
   files.value = props.folders[folder]
   await selectImage(imageIndex.value)
   folderRenameName.value = folder
@@ -118,7 +119,6 @@ const previousImage = () => {
 
 onMounted(async () => {
   await props.refreshFiles()
-  currentFolder.value = Object.keys(props.folders)[0]
   imageIndex.value = 0
 
   const fontKalam = new FontFace('Kalam', 'url(Kalam.ttf)')
@@ -295,9 +295,6 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.scale(tapeScale, tapeScale)
       ctx.drawImage(tapeImage, 0, 0)
     }
-
-    //ctx.restore()
-    //ctx.rotate(-imageAngle)
   }
 }
 
@@ -321,47 +318,14 @@ const exifDateToPrettyDate = (exifDate: string) => {
 }
 
 const moveItemToFolder = async (folder: string) => {
-  await ipcRenderer.invoke('moveImage', currentImage(), currentFolder.value, folder)
+  await ipcRenderer.invoke('moveImage', currentImage(), props.currentFolder, folder)
   await props.refreshFiles()
 }
 
 const moveItemToFolderWithIndex = async (index: number) => {
   const folder = Object.keys(props.folders)[index]
-  await ipcRenderer.invoke('moveImage', currentImage(), currentFolder.value, folder)
+  await ipcRenderer.invoke('moveImage', currentImage(), props.currentFolder, folder)
   await props.refreshFiles()
-}
-
-const createNewAlbum = async () => {
-  const folderNames = Object.keys(props.folders)
-  const lastNewAlbumIndex = Math.max(
-    0,
-    ...folderNames
-      .filter((name) => name.startsWith('New Album'))
-      .map((name) => parseInt(name.replace('New Album ', '')))
-      .filter((item) => item)
-  )
-  const newAlbumName = `New Album ${lastNewAlbumIndex + 1}`
-
-  await ipcRenderer.invoke('createFolder', newAlbumName)
-  await props.refreshFiles()
-}
-
-const handleShowRename = () => {
-  showRename.value = true
-  setTimeout(() => {
-    inputRef.value?.focus()
-  }, 0)
-}
-
-const handleRename = async () => {
-  if (folderRenameName.value === currentFolder.value || !folderRenameName.value) {
-    showRename.value = false
-    return
-  }
-  await ipcRenderer.invoke('renameFolder', currentFolder.value, folderRenameName.value)
-  await props.refreshFiles()
-  showRename.value = false
-  currentFolder.value = folderRenameName.value
 }
 
 const handleKeyPress = (event: KeyboardEvent) => {
@@ -384,12 +348,12 @@ const handleTextAreaType = () => {
   }
 
   timer.value = setTimeout(async () => {
-    await ipcRenderer.invoke('updateImageDescription', currentFolder.value, currentImage(), description.value)
+    await ipcRenderer.invoke('updateImageDescription', props.currentFolder, currentImage(), description.value)
   }, 200)
 }
 
 const handleDateTimeChange = async (newDate: string) => {
-  await ipcRenderer.invoke('updateImageDate', currentFolder.value, currentImage(), newDate)
+  await ipcRenderer.invoke('updateImageDate', props.currentFolder, currentImage(), newDate)
 }
 
 window.addEventListener('resize', () => {
@@ -461,52 +425,44 @@ const pan = (amount: { x: number; y: number }) => {
 </script>
 
 <template>
-  <main class="relative parchment-background">
-    <template v-if="viewMode === 'edit-mode'">
-      <div class="flex justify-center gap-4 absolute abs-center-x top-4">
-        <input v-if="showRename" type="text" v-model="folderRenameName" @blur="handleRename" ref="inputRef" />
-        <select v-else v-model="currentFolder" class="w-fit" @dblclick="handleShowRename">
-          <option v-for="folder in Object.keys(folders)" :value="folder">
-            {{ folder }}
-          </option>
-        </select>
-        <button @click="createNewAlbum">+</button>
+  <template v-if="viewMode === 'edit-mode'">
+    <button @click="props.closeAlbum" class="absolute left-4 top-2 text-3xl">
+      <ArrowTurnUpLeftIcon class="size-8" />
+    </button>
+    <button @click="previousImage" class="absolute abs-center-y left-4 text-3xl"><</button>
+    <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="9">></button>
+    <div class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full">
+      <div class="w-full flex flex-col justify-center px-40">
+        <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
+        <textarea
+          class="w-full bg-black px-4 p-2 rounded-b-md rounded-r-md"
+          tabindex="2"
+          @input="handleTextAreaType"
+          v-model="description"
+        ></textarea>
       </div>
-      <button @click="previousImage" class="absolute abs-center-y left-4 text-3xl"><</button>
-      <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="9">></button>
-      <div class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full">
-        <div class="w-full flex flex-col justify-center px-40">
-          <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
-          <textarea
-            class="w-full bg-black px-4 p-2 rounded-b-md rounded-r-md"
-            tabindex="2"
-            @input="handleTextAreaType"
-            v-model="description"
-          ></textarea>
-        </div>
 
-        <div class="w-full flex flex-col justify-center px-40">
-          <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
-          <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" />
-        </div>
-
-        <div class="flex flex-wrap gap-4">
-          <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)">
-            {{ i + 1 }}. {{ folder }}
-          </button>
-        </div>
+      <div class="w-full flex flex-col justify-center px-40">
+        <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
+        <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" />
       </div>
-    </template>
-    <canvas
-      ref="canvasRef"
-      @keydown="handleKeyPress"
-      @wheel="handleScroll"
-      @mousedown="handleMouse"
-      @mouseup="handleMouse"
-      @mouseout="handleMouse"
-      @mousemove="handleMouse"
-      tabindex="1"
-    ></canvas>
-  </main>
+
+      <div class="flex flex-wrap gap-4">
+        <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)">
+          {{ i + 1 }}. {{ folder }}
+        </button>
+      </div>
+    </div>
+  </template>
+  <canvas
+    ref="canvasRef"
+    @keydown="handleKeyPress"
+    @wheel="handleScroll"
+    @mousedown="handleMouse"
+    @mouseup="handleMouse"
+    @mouseout="handleMouse"
+    @mousemove="handleMouse"
+    tabindex="1"
+  ></canvas>
   <img src="../assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
 </template>

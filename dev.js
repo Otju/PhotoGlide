@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import fs from 'fs'
 import piexif, { TagValues } from 'piexif-ts'
 import Store from 'electron-store'
+import { strict } from 'assert'
 
 const store = new Store()
 
@@ -62,11 +63,16 @@ const getImageData = (folderName, imageName) => {
   return { imageData, imageDescription, imageDate }
 }
 
-const updateImageMetaData = (folderName, imageName, metadataCategory, metadataTag, newValue) => {
-  const path = `${defaultFolder}\\${folderName}\\${imageName}`
+const loadExifData = (path) => {
   const raw = fs.readFileSync(path)
   const binary = raw.toString('binary')
   const exif = piexif.load(binary)
+  return exif
+}
+
+const updateImageMetaData = (folderName, imageName, metadataCategory, metadataTag, newValue) => {
+  const path = `${defaultFolder}\\${folderName}\\${imageName}`
+  const exif = loadExifData(path)
   exif[metadataCategory][metadataTag] = newValue
   const exifBytes = piexif.dump(exif)
   const newData = piexif.insert(exifBytes, binary)
@@ -79,6 +85,13 @@ const updateImageDescription = (folderName, imageName, newDescription) => {
 
 const updateImageDate = (folderName, imageName, newDate) => {
   updateImageMetaData(folderName, imageName, 'Exif', TagValues.ExifIFD.DateTimeOriginal, newDate)
+}
+
+const loadImageThumbnail = (folderName, imageName) => {
+  const path = `${defaultFolder}\\${folderName}\\${imageName}`
+  const exif = loadExifData(path)
+  const thumbnail = exif['thumbnail']
+  return btoa(thumbnail)
 }
 
 const createWindow = () => {
@@ -95,7 +108,7 @@ const createWindow = () => {
   let menuTemplate = [
     {
       label: 'File',
-      submenu: [{ label: 'Select folder containing albums', click: setDefaultFolder }],
+      submenu: [{ label: 'Select main folder (folder containing albums)', click: setDefaultFolder }],
     },
     {
       label: 'View',
@@ -163,6 +176,10 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('getImage', (event, folderName, imageName) => {
     return getImageData(folderName, imageName)
+  })
+
+  ipcMain.handle('getImageThumbnail', (event, folderName, imageName) => {
+    return loadImageThumbnail(folderName, imageName)
   })
 
   ipcMain.handle('updateImageDescription', (event, folderName, imageName, newDescription) => {
