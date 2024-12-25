@@ -11,7 +11,6 @@
     "build": "vue-tsc && vite build && electron-forge make",
     "dev": "cross-env NODE_ENV=development concurrently --kill-others \"vite\" \"electron main.js\"",
     "start": "electron-forge start",
-    "make": "electron-forge make",
     "build-icons": "electron-icon-builder --input=./icon.png --output=. -f"
   },
   "dependencies": {
