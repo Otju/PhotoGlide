@@ -5,6 +5,7 @@ module.exports = {
   packagerConfig: {
     asar: true,
     extraResource: './node_modules/exiftool-vendored.' + (process.platform === 'win32' ? 'exe' : 'pl'),
+    icon: './icons/icon',
   },
   rebuildConfig: {},
   makers: [
@@ -12,6 +13,16 @@ module.exports = {
       name: '@electron-forge/maker-squirrel',
       config: {},
     },
+    {
+      name: '@rabbitholesyndrome/electron-forge-maker-portable',
+      config: {
+        portable: {
+          artifactName: 'photo-captioner.exe',
+        },
+        icon: './icons/icon',
+      },
+    },
+    /*
     {
       name: '@electron-forge/maker-zip',
       platforms: ['darwin'],
@@ -24,9 +35,7 @@ module.exports = {
       name: '@electron-forge/maker-rpm',
       config: {},
     },
-    {
-      name: '@rabbitholesyndrome/electron-forge-maker-portable',
-    },
+    */
   ],
   plugins: [
     {
