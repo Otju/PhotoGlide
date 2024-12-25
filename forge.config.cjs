@@ -4,6 +4,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses')
 module.exports = {
   packagerConfig: {
     asar: true,
+    extraResource: './node_modules/exiftool-vendored.' + (process.platform === 'win32' ? 'exe' : 'pl'),
   },
   rebuildConfig: {},
   makers: [

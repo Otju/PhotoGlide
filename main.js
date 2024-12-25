@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import fs from 'fs'
 import Store from 'electron-store'
-import { exiftool } from 'exiftool-vendored'
+import { ExifTool, exiftoolPath } from 'exiftool-vendored'
 import dayjs from 'dayjs'
 
 const store = new Store()
@@ -9,6 +9,13 @@ const store = new Store()
 let defaultFolder = store.get('defaultFolder')
 
 const imageFileEndings = ['.png', '.jpg', '.jpeg']
+
+const exiftool = new ExifTool({
+  exiftoolPath: async () => {
+    const path = await exiftoolPath()
+    return path.replace('app.asar\\node_modules\\', '')
+  },
+})
 
 const getFileEnding = (fileName) => {
   return fileName.slice(fileName.lastIndexOf('.'))
@@ -103,7 +110,12 @@ const createWindow = async () => {
       contextIsolation: false,
     },
   })
-  win.loadURL('http://localhost:5173/')
+
+  if (process.env.NODE_ENV === 'development') {
+    win.loadURL('http://localhost:5173/')
+  } else {
+    win.loadFile('dist/index.html')
+  }
 
   let menuTemplate = [
     {
@@ -133,7 +145,9 @@ const createWindow = async () => {
   const menu = Menu.buildFromTemplate(menuTemplate)
   Menu.setApplicationMenu(menu)
 
-  win.webContents.openDevTools()
+  if (process.env.NODE_ENV === 'development') {
+    win.webContents.openDevTools()
+  }
 
   const selectMode = (mode) => {
     const item = menu.getMenuItemById(mode)

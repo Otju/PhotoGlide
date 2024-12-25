@@ -3,16 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  @font-face {
-    font-family: 'PermanentMarker';
-    src: url(PermanentMarker.ttf);
-  }
-
-  @font-face {
-    font-family: 'Kalam';
-    src: url(Kalam.ttf);
-  }
-
   html,
   body,
   #root {
