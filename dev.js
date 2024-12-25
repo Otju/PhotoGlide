@@ -1,10 +1,8 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import fs from 'fs'
 import Store from 'electron-store'
-import exiftool from 'node-exiftool'
-import exiftoolBin from 'dist-exiftool'
-
-const ep = new exiftool.ExiftoolProcess(exiftoolBin)
+import { exiftool } from 'exiftool-vendored'
+import dayjs from 'dayjs'
 
 const store = new Store()
 
@@ -64,12 +62,16 @@ const getImage = async (folderName, imageName) => {
 const getImageMetadata = async (folderName, imageName) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
 
-  const metadata = await ep.readMetadata(path, ['-File:all'])
-
-  const imageMetadata = metadata?.data[0]
+  const imageMetadata = await exiftool.read(path)
 
   const imageDescription = imageMetadata?.ImageDescription
-  const imageDate = imageMetadata?.DateTimeOriginal
+  let imageDate = imageMetadata?.DateTimeOriginal
+
+  if (imageDate && typeof imageDate !== 'string') {
+    const date = dayjs(imageDate)
+    // YYYY:MM:DD HH:mm:ss
+    imageDate = date.format('YYYY:MM:DD HH:mm:ss')
+  }
 
   return { imageDescription, imageDate }
 }
@@ -78,7 +80,7 @@ const updateImageMetaData = async (folderName, imageName, newValue) => {
   const path = `${defaultFolder}\\${folderName}\\${imageName}`
   try {
     // n flags skips input validation, e.g. allows incomplete dates
-    await ep.writeMetadata(path, newValue, ['overwrite_original', 'n'])
+    await exiftool.write(path, newValue, ['-n', '-overwrite_original'])
   } catch (e) {
     console.error(e)
   }
@@ -89,7 +91,7 @@ const updateImageDescription = async (folderName, imageName, newDescription) => 
 }
 
 const updateImageDate = async (folderName, imageName, newDate) => {
-  await updateImageMetaData(folderName, imageName, { DateTimeOriginal: newDate })
+  await updateImageMetaData(folderName, imageName, { AllDates: newDate })
 }
 
 const createWindow = async () => {
@@ -102,8 +104,6 @@ const createWindow = async () => {
     },
   })
   win.loadURL('http://localhost:5173/')
-
-  await ep.open()
 
   let menuTemplate = [
     {
@@ -212,5 +212,6 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  exiftool.end()
   if (process.platform !== 'darwin') app.quit()
 })
