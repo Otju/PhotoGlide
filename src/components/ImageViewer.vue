@@ -3,7 +3,8 @@ import { onMounted, ref, watch } from 'vue'
 import { split } from 'canvas-hypertxt'
 import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
-import { ArrowTurnUpLeftIcon } from '@heroicons/vue/24/solid'
+import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
+import dayjs, { Dayjs } from 'dayjs'
 
 const { ipcRenderer } = window.require('electron')
 
@@ -44,6 +45,7 @@ const mouseRef = ref<{
   oldY: 0,
   button: false,
 })
+const dateGuessBasedOnFileName = ref<string | null>(null)
 
 const selectImage = async (fileIndex: number) => {
   if (fileIndex < 0) return
@@ -101,6 +103,13 @@ watch(imageIndex, async (index, _) => {
   zoomRef.value = 1
   posRef.value = { x: 0, y: 0 }
 })
+
+watch(
+  () => currentImage(),
+  async (image, _) => {
+    dateGuessBasedOnFileName.value = getDateFromFileName(image)
+  }
+)
 
 const nextImage = () => {
   if (imageIndex.value >= files.value.length - 1) {
@@ -429,6 +438,37 @@ const pan = (amount: { x: number; y: number }) => {
     pos.y = -height + window.innerHeight
   }
 }
+
+const getDateFromFileName = (fileName: string) => {
+  const dateMatch = fileName.match(/\d{8}/)
+  console.log(fileName)
+  if (!dateMatch) {
+    return null
+  }
+  const dateString = dateMatch[0]
+  let date = dayjs(dateString, 'YYYYMMDD')
+  if (dateIsValid(date)) {
+    return date.format('YYYY:MM:DD HH:mm:ss')
+  }
+
+  date = dayjs(dateString, 'DDMMYYYY')
+  if (dateIsValid(date)) {
+    return date.format('YYYY:MM:DD HH:mm:ss')
+  }
+
+  return null
+}
+
+const dateIsValid = (date: Dayjs) => {
+  return date.isValid() && date.isAfter('1900-01-01') && date.isBefore('2100-01-01')
+}
+
+const setNewDateBasedOnFileName = async () => {
+  if (dateGuessBasedOnFileName.value) {
+    captureDate.value = dateGuessBasedOnFileName.value
+    handleDateTimeChange(dateGuessBasedOnFileName.value)
+  }
+}
 </script>
 
 <template>
@@ -450,8 +490,20 @@ const pan = (amount: { x: number; y: number }) => {
       </div>
 
       <div class="w-full flex flex-col justify-center px-40">
-        <label class="bg-black w-fit px-2 rounded-t-md">Capture Date</label>
-        <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" />
+        <label class="bg-black w-fit px-2 rounded-t-md border-none">Capture Date</label>
+        <div class="w-full flex">
+          <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" class="flex-1" />
+          <div class="bg-black text-white rounded-r-lg border-none p-2 h-10">
+            <button
+              v-if="dateGuessBasedOnFileName"
+              @click="setNewDateBasedOnFileName"
+              title="Guess date from filename"
+              class="p-0"
+            >
+              <DocumentMagnifyingGlassIcon class="size-6" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="flex flex-wrap gap-4">
