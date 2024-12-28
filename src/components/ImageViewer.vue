@@ -15,6 +15,8 @@ const props = defineProps<{
   closeAlbum: () => void
 }>()
 
+const sideBarWidth = 250
+
 const defaultCaptureDate = '    :  :     :  :  '
 
 const files = ref<string[]>([])
@@ -60,7 +62,7 @@ const selectImage = async (fileIndex: number) => {
     const ctx = ctxRef.value
     if (!canvas || !ctx) return
     canvas.height = window.innerHeight
-    canvas.width = window.innerWidth
+    canvas.width = window.innerWidth - sideBarWidth
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     // Draw text "No image"
     ctx.font = '30px Arial'
@@ -117,9 +119,7 @@ const nextImage = () => {
   } else {
     imageIndex.value++
   }
-
-  const canvas = canvasRef.value
-  canvas?.focus()
+  canvasRef.value?.focus()
 }
 
 const previousImage = () => {
@@ -129,8 +129,7 @@ const previousImage = () => {
     imageIndex.value--
   }
 
-  const canvas = canvasRef.value
-  canvas?.focus()
+  canvasRef.value?.focus()
 }
 
 onMounted(async () => {
@@ -159,6 +158,8 @@ onMounted(async () => {
       viewMode.value = 'album-mode'
     }
   })
+
+  canvasRef.value?.focus()
 })
 
 watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
@@ -175,7 +176,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   if (!ctx || !canvas || !imageRef.value || !isImage.value) return
   const image = imageRef.value
   canvas.height = window.innerHeight
-  canvas.width = window.innerWidth
+  canvas.width = window.innerWidth - sideBarWidth
 
   if (canvas.height < 200 || canvas.width < 200) {
     return
@@ -472,56 +473,80 @@ const setNewDateBasedOnFileName = async () => {
 </script>
 
 <template>
-  <template v-if="viewMode === 'edit-mode'">
-    <button @click="props.closeAlbum" class="absolute left-4 top-2 text-3xl">
-      <ArrowTurnUpLeftIcon class="size-8" />
-    </button>
-    <button @click="previousImage" class="absolute abs-center-y left-4 text-3xl"><</button>
-    <button @click="nextImage" class="absolute abs-center-y right-4 text-3xl" tabindex="9">></button>
-    <div class="flex flex-col items-center gap-4 absolute abs-center-x bottom-4 w-full">
-      <div class="w-full flex flex-col justify-center px-40">
-        <label class="bg-black w-fit px-2 rounded-t-md">Description</label>
-        <textarea
-          class="w-full bg-black px-4 p-2 rounded-b-md rounded-r-md"
-          tabindex="2"
-          @input="handleTextAreaType"
-          v-model="description"
-        ></textarea>
-      </div>
+  <div class="flex">
+    <canvas
+      ref="canvasRef"
+      @keydown="handleKeyPress"
+      @wheel="handleScroll"
+      @mousedown="handleMouse"
+      @mouseup="handleMouse"
+      @mouseout="handleMouse"
+      @mousemove="handleMouse"
+      tabindex="1"
+    ></canvas>
+    <template v-if="viewMode === 'edit-mode'">
+      <div class="bg-black h-[100vh] p-4 flex flex-col gap-8" :style="{ width: sideBarWidth + 'px' }">
+        <div class="flex flex-col">
+          <label class="bg-white text-black w-fit px-2 rounded-t-md">Description</label>
+          <textarea
+            class="w-full bg-white text-black px-4 p-2 rounded-b-md rounded-r-md"
+            tabindex="2"
+            rows="4"
+            @input="handleTextAreaType"
+            v-model="description"
+          ></textarea>
+        </div>
 
-      <div class="w-full flex flex-col justify-center px-40">
-        <label class="bg-black w-fit px-2 rounded-t-md border-none">Capture Date</label>
-        <div class="w-full flex">
-          <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" class="flex-1" />
-          <div class="bg-black text-white rounded-r-lg border-none p-2 h-10">
-            <button
-              v-if="dateGuessBasedOnFileName"
-              @click="setNewDateBasedOnFileName"
-              title="Guess date from filename"
-              class="p-0"
-            >
-              <DocumentMagnifyingGlassIcon class="size-6" />
-            </button>
+        <div class="flex flex-col">
+          <label class="bg-white w-fit px-2 rounded-t-md border-none">Capture Date</label>
+          <div class="w-full flex">
+            <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" class="flex-1" />
+            <div class="bg-white rounded-r-lg border-none p-2 h-10">
+              <button
+                v-if="dateGuessBasedOnFileName"
+                @click="setNewDateBasedOnFileName"
+                title="Guess date from filename"
+                class="p-0"
+              >
+                <DocumentMagnifyingGlassIcon class="size-6" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-4">
+      <button
+        @click="props.closeAlbum"
+        class="absolute left-4 top-2 text-3xl"
+        :style="{ marginRight: sideBarWidth + 'px' }"
+      >
+        <ArrowTurnUpLeftIcon class="size-8" />
+      </button>
+      <button
+        @click="previousImage"
+        class="absolute abs-center-y left-4 text-3xl"
+        :style="{ marginRight: sideBarWidth + 'px' }"
+      >
+        <
+      </button>
+      <button
+        @click="nextImage"
+        class="absolute abs-center-y right-4 text-3xl"
+        tabindex="9"
+        :style="{ marginRight: sideBarWidth + 'px' }"
+      >
+        >
+      </button>
+
+      <div
+        class="flex flex-wrap justify-center gap-4 absolute bottom-4 w-full"
+        :style="{ paddingRight: sideBarWidth + 'px' }"
+      >
         <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)">
           {{ i + 1 }}. {{ folder }}
         </button>
       </div>
-    </div>
-  </template>
-  <canvas
-    ref="canvasRef"
-    @keydown="handleKeyPress"
-    @wheel="handleScroll"
-    @mousedown="handleMouse"
-    @mouseup="handleMouse"
-    @mouseout="handleMouse"
-    @mousemove="handleMouse"
-    tabindex="1"
-  ></canvas>
+    </template>
+  </div>
   <img src="../assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
 </template>

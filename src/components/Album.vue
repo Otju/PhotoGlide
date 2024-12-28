@@ -75,7 +75,7 @@ const handleDelete = async () => {
 </script>
 
 <template>
-  <div class="flex flex-col items-center text-center w-40">
+  <div class="text-white flex flex-col items-center text-center w-40">
     <a class="relative w-32 h-32" href="#" @click="props.openAlbum(props.folderName)">
       <FolderOpenIcon class="w-full absolute" style="clip-path: inset(0px 0px 75px 0px)" />
       <img
