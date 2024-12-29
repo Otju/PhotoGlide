@@ -5,7 +5,6 @@ import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
 import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
-import { Folders, FaceDetection } from '../types'
 
 const { ipcRenderer } = window.require('electron')
 
