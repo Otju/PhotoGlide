@@ -5,6 +5,7 @@ import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
 import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
+import { Folders, FaceDetection } from '../types'
 
 const { ipcRenderer } = window.require('electron')
 
@@ -15,7 +16,7 @@ const props = defineProps<{
   closeAlbum: () => void
 }>()
 
-const sideBarWidth = 250
+const sideBarWidth = 280
 
 const defaultCaptureDate = '    :  :     :  :  '
 
@@ -34,6 +35,7 @@ const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
 const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
+const detectedFaces = ref<FaceDetection[]>([])
 const mouseRef = ref<{
   x: number
   y: number
@@ -50,6 +52,7 @@ const mouseRef = ref<{
 const dateGuessBasedOnFileName = ref<string | null>(null)
 
 const selectImage = async (fileIndex: number) => {
+  detectedFaces.value = []
   if (fileIndex < 0) return
   let index = fileIndex
   imageAngle.value = randomImageAngle()
@@ -88,6 +91,12 @@ const selectImage = async (fileIndex: number) => {
 
   description.value = imageDescription ?? ''
   captureDate.value = imageDate ?? defaultCaptureDate
+}
+
+const getFaces = async () => {
+  const faces = (await ipcRenderer.invoke('getFaces', props.currentFolder, currentImage())) as FaceDetection[]
+  detectedFaces.value = faces
+  drawImage({ pos: posRef.value, scale: zoomRef.value })
 }
 
 const currentImage = () => {
@@ -224,6 +233,17 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 
   if (viewMode.value === 'edit-mode') {
     ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
+
+    detectedFaces.value.forEach((face) => {
+      ctx.strokeStyle = 'red'
+      ctx.lineWidth = 2
+      ctx.strokeRect(
+        (face._box._x / image.width) * renderedWidth + xOffset,
+        (face._box._y / image.height) * renderedHeight + yOffset,
+        (face._box._width / image.width) * renderedWidth,
+        (face._box._height / image.height) * renderedHeight
+      )
+    })
   } else {
     ctx.save()
     ctx.translate(x, y)
@@ -442,7 +462,6 @@ const pan = (amount: { x: number; y: number }) => {
 
 const getDateFromFileName = (fileName: string) => {
   const dateMatch = fileName.match(/\d{8}/)
-  console.log(fileName)
   if (!dateMatch) {
     return null
   }
@@ -508,30 +527,32 @@ const setNewDateBasedOnFileName = async () => {
                 title="Guess date from filename"
                 class="p-0"
               >
-                <DocumentMagnifyingGlassIcon class="size-6" />
+                <DocumentMagnifyingGlassIcon class="size-6 bg-white text-black" />
               </button>
             </div>
           </div>
         </div>
+
+        <button @click="getFaces" class="bg-white text-black p-2 rounded-md">Detect Faces</button>
       </div>
 
       <button
         @click="props.closeAlbum"
-        class="absolute left-4 top-2 text-3xl"
+        class="absolute left-4 top-2 text-3xl abs-button"
         :style="{ marginRight: sideBarWidth + 'px' }"
       >
         <ArrowTurnUpLeftIcon class="size-8" />
       </button>
       <button
         @click="previousImage"
-        class="absolute abs-center-y left-4 text-3xl"
+        class="absolute abs-center-y left-4 text-3xl abs-button"
         :style="{ marginRight: sideBarWidth + 'px' }"
       >
         <
       </button>
       <button
         @click="nextImage"
-        class="absolute abs-center-y right-4 text-3xl"
+        class="absolute abs-center-y right-4 text-3xl abs-button"
         tabindex="9"
         :style="{ marginRight: sideBarWidth + 'px' }"
       >
@@ -542,7 +563,7 @@ const setNewDateBasedOnFileName = async () => {
         class="flex flex-wrap justify-center gap-4 absolute bottom-4 w-full"
         :style="{ paddingRight: sideBarWidth + 'px' }"
       >
-        <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)">
+        <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)" class="abs-button">
           {{ i + 1 }}. {{ folder }}
         </button>
       </div>

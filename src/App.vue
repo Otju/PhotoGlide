@@ -70,7 +70,7 @@ const closeAlbum = () => {
       </template>
       <div class="flex flex-col items-center text-center justify-center w-40">
         <button @click="createNewAlbum" class="bg-transparent p-0 w-32 h-32">
-          <FolderPlusIcon class="" />
+          <FolderPlusIcon class="text-white" />
         </button>
         <h2 class="text-xl text-black font-semibold w-full h-16">New album</h2>
       </div>
