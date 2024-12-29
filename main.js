@@ -3,7 +3,7 @@ import fs from 'fs'
 import Store from 'electron-store'
 import { ExifTool, exiftoolPath } from 'exiftool-vendored'
 import dayjs from 'dayjs'
-
+import '@tensorflow/tfjs-node'
 import * as faceapi from '@vladmandic/face-api'
 import * as canvas from 'canvas'
 
