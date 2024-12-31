@@ -3,12 +3,6 @@ import fs from 'fs'
 import Store from 'electron-store'
 import { ExifTool, exiftoolPath } from 'exiftool-vendored'
 import dayjs from 'dayjs'
-import '@tensorflow/tfjs-node'
-import * as faceapi from '@vladmandic/face-api'
-import * as canvas from 'canvas'
-
-const { Canvas, Image, ImageData } = canvas
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData })
 
 const store = new Store()
 
@@ -107,13 +101,6 @@ const updateImageDate = async (folderName, imageName, newDate) => {
   await updateImageMetaData(folderName, imageName, { AllDates: newDate })
 }
 
-const getFaces = async (folderName, imageName) => {
-  const path = `${defaultFolder}\\${folderName}\\${imageName}`
-  const image = await canvas.loadImage(path)
-  const detections = await faceapi.detectAllFaces(image)
-  return detections
-}
-
 const createWindow = async () => {
   const win = new BrowserWindow({
     width: 1000,
@@ -123,8 +110,6 @@ const createWindow = async () => {
       contextIsolation: false,
     },
   })
-
-  await faceapi.nets.ssdMobilenetv1.loadFromDisk('./models')
 
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173/')
@@ -160,9 +145,9 @@ const createWindow = async () => {
   const menu = Menu.buildFromTemplate(menuTemplate)
   Menu.setApplicationMenu(menu)
 
-  if (process.env.NODE_ENV === 'development') {
-    win.webContents.openDevTools()
-  }
+  //if (process.env.NODE_ENV === 'development') {
+  win.webContents.openDevTools()
+  //}
 
   const selectMode = (mode) => {
     const item = menu.getMenuItemById(mode)
@@ -233,10 +218,6 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('deleteFolder', (event, folderName) => {
     fs.rmdirSync(`${defaultFolder}\\${folderName}`, { recursive: true })
-  })
-
-  ipcMain.handle('getFaces', async (event, folderName, imageName) => {
-    return await getFaces(folderName, imageName)
   })
 
   app.on('activate', () => {

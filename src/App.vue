@@ -3,7 +3,6 @@ import { onMounted, ref } from 'vue'
 import ImageViewer from './components/ImageViewer.vue'
 import Album from './components/Album.vue'
 import { FolderPlusIcon } from '@heroicons/vue/24/solid'
-
 const { ipcRenderer } = window.require('electron')
 
 const folders = ref<Folders>({})

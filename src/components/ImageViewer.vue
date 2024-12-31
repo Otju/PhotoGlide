@@ -5,8 +5,33 @@ import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
 import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
+import Human, { FaceResult, Config } from '@vladmandic/human'
 
 const { ipcRenderer } = window.require('electron')
+
+const humanConfig: Partial<Config> = {
+  cacheSensitivity: 0,
+  modelBasePath: '../../models',
+  cacheModels: false,
+  debug: true,
+  filter: { enabled: true, equalization: false, flip: false },
+  face: {
+    enabled: true,
+    detector: { rotation: false, maxDetected: 100, minConfidence: 0.15, return: false, iouThreshold: 0.01 },
+    iris: { enabled: false },
+    description: { enabled: false },
+    emotion: { enabled: false },
+    antispoof: { enabled: false },
+    liveness: { enabled: false },
+  },
+  body: { enabled: false },
+  hand: { enabled: false },
+  object: { enabled: false },
+  gesture: { enabled: false },
+  segmentation: { enabled: false },
+}
+
+const human = new Human(humanConfig)
 
 const props = defineProps<{
   folders: Folders
@@ -34,7 +59,7 @@ const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
 const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
-const detectedFaces = ref<FaceDetection[]>([])
+const detectedFaces = ref<FaceResult[]>([])
 const mouseRef = ref<{
   x: number
   y: number
@@ -93,8 +118,11 @@ const selectImage = async (fileIndex: number) => {
 }
 
 const getFaces = async () => {
-  const faces = (await ipcRenderer.invoke('getFaces', props.currentFolder, currentImage())) as FaceDetection[]
-  detectedFaces.value = faces
+  if (!imageRef.value) return
+
+  const response = await human.detect(imageRef.value)
+
+  detectedFaces.value = response.face
   drawImage({ pos: posRef.value, scale: zoomRef.value })
 }
 
@@ -153,9 +181,6 @@ onMounted(async () => {
   fontPermanentMarker.load()
 
   imageRef.value = new Image()
-  imageRef.value.onload = function () {
-    drawImage({ pos: posRef.value, scale: zoomRef.value })
-  }
   if (!canvasRef.value) return
   ctxRef.value = canvasRef.value.getContext('2d')
 
@@ -237,10 +262,10 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.strokeStyle = 'red'
       ctx.lineWidth = 2
       ctx.strokeRect(
-        (face._box._x / image.width) * renderedWidth + xOffset,
-        (face._box._y / image.height) * renderedHeight + yOffset,
-        (face._box._width / image.width) * renderedWidth,
-        (face._box._height / image.height) * renderedHeight
+        (face.box[0] / image.width) * renderedWidth + xOffset,
+        (face.box[1] / image.height) * renderedHeight + yOffset,
+        (face.box[2] / image.width) * renderedWidth,
+        (face.box[3] / image.height) * renderedHeight
       )
     })
   } else {
