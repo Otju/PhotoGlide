@@ -6,17 +6,18 @@ import DateTimeInput from './DateTimeInput.vue'
 import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
 import Human, { Config, Result } from '@vladmandic/human'
+import { v4 as randomUUID } from 'uuid'
 
 const { ipcRenderer } = window.require('electron')
 
 const humanConfig: Partial<Config> = {
   cacheSensitivity: 0,
   modelBasePath: '../../models',
-  debug: true,
+  debug: false,
   filter: { enabled: true, equalization: true, flip: false, width: 0, height: 0, autoBrightness: true },
   face: {
     enabled: true,
-    detector: { rotation: true, maxDetected: 100, minConfidence: 0.15, return: false, iouThreshold: 0.01 },
+    detector: { rotation: true, maxDetected: 100, minConfidence: 0.2, return: false, iouThreshold: 0.01 },
     mesh: { enabled: true },
     iris: { enabled: false },
     description: { enabled: true },
@@ -36,8 +37,10 @@ const human = new Human(humanConfig)
 const props = defineProps<{
   folders: Folders
   currentFolder: string
+  allFaces: { [key: string]: Face[] }
   refreshFiles: () => Promise<void>
   closeAlbum: () => void
+  setFacesForImage: (imageID: string, faces: Face[]) => void
 }>()
 
 const sideBarWidth = 280
@@ -60,8 +63,9 @@ const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
 const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
+const imageFaces = ref<Face[]>([])
 const detectionResult = ref<Result | null>(null)
-const faceImages = ref<string[]>([])
+const currentImageID = ref<string | null>(null)
 const mouseRef = ref<{
   x: number
   y: number
@@ -79,6 +83,7 @@ const dateGuessBasedOnFileName = ref<string | null>(null)
 
 const selectImage = async (fileIndex: number) => {
   detectionResult.value = null
+  imageFaces.value = []
   if (fileIndex < 0) return
   let index = fileIndex
   imageAngle.value = randomImageAngle()
@@ -109,7 +114,7 @@ const selectImage = async (fileIndex: number) => {
   imageRef.value.src = `data:image/jpg;base64,${imageData}`
   isImage.value = true
 
-  const { imageDescription, imageDate } = await ipcRenderer.invoke(
+  const { imageDescription, imageDate, imageID } = await ipcRenderer.invoke(
     'getImageMetadata',
     props.currentFolder,
     files.value[index]
@@ -117,11 +122,17 @@ const selectImage = async (fileIndex: number) => {
 
   description.value = imageDescription ?? ''
   captureDate.value = imageDate ?? defaultCaptureDate
+  currentImageID.value = imageID ?? null
+
+  if (currentImageID.value) {
+    imageFaces.value = props.allFaces[currentImageID.value] ?? []
+  }
 }
 
 const getFaces = async () => {
-  if (!imageRef.value) return
-  faceImages.value = []
+  if (!imageRef.value || !currentImageID.value) return
+  imageFaces.value = []
+  const imageID = currentImageID.value
 
   const result = await human.detect(imageRef.value)
 
@@ -133,21 +144,37 @@ const getFaces = async () => {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
+  const otherFaces = Object.entries(props.allFaces).flatMap(([id, faces]) => (id === currentImageID.value ? [] : faces))
+  const embeddingArray = otherFaces.map((face) => face.embedding)
+
   detectionResult.value.face.forEach((face) => {
-    const { box } = face
-    if (imageRef.value && detectionResult.value) {
-      const { x, y, width, height } = boxCoordinatesToImageCoords({
+    const { box, embedding } = face
+    if (imageRef.value && detectionResult.value && embedding) {
+      const bounds = boxCoordinatesToFaceBounds({
         box,
         imageWidth: detectionResult.value.width,
         imageHeight: detectionResult.value.height,
         renderedWidth: imageRef.value.width,
         renderedHeight: imageRef.value.height,
       })
+      const { x, y, width, height } = bounds
       ctx.drawImage(imageRef.value, x, y, width, height, 0, 0, 50, 50)
       const dataUrl = canvas.toDataURL('image/jpeg')
-      faceImages.value.push(dataUrl)
+
+      let name = ''
+
+      const best = human.match.find(embedding, embeddingArray)
+      const bestMatch = otherFaces[best.index]
+
+      if (bestMatch && best.similarity > 0.5) {
+        name = bestMatch.name
+      }
+
+      imageFaces.value.push({ bounds, name, dataUrl, embedding, id: randomUUID(), imageID })
     }
   })
+
+  props.setFacesForImage(currentImageID.value, imageFaces.value)
 }
 
 const currentImage = () => {
@@ -217,6 +244,10 @@ onMounted(async () => {
   })
 
   canvasRef.value?.focus()
+
+  if (currentImageID.value) {
+    imageFaces.value = props.allFaces[currentImageID.value] ?? []
+  }
 })
 
 watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
@@ -292,7 +323,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
           y: boxY,
           width: boxWidth,
           height: boxHeight,
-        } = boxCoordinatesToImageCoords({
+        } = boxCoordinatesToFaceBounds({
           box: face.box,
           imageWidth: detectionImageWidth,
           imageHeight: detetionImageHeight,
@@ -414,7 +445,7 @@ const exifDateToPrettyDate = (exifDate: string) => {
   return ''
 }
 
-const boxCoordinatesToImageCoords = ({
+const boxCoordinatesToFaceBounds = ({
   box,
   imageWidth,
   imageHeight,
@@ -573,6 +604,12 @@ const setNewDateBasedOnFileName = async () => {
     handleDateTimeChange(dateGuessBasedOnFileName.value)
   }
 }
+
+const handleFaceNameChange = (id: string, newName: string) => {
+  const face = imageFaces.value.find((face) => face.id === id)
+  if (!face) return
+  face.name = newName
+}
 </script>
 
 <template>
@@ -621,8 +658,15 @@ const setNewDateBasedOnFileName = async () => {
 
         <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
 
-        <div class="flex flex-wrap gap-4 justify-center">
-          <img v-for="faceImage in faceImages" :src="faceImage" class="rounded-full w-16" />
+        <div class="flex flex-col gap-2 w-full">
+          <div v-for="face in imageFaces" class="text-white flex flex-col items-center gap-1 w-full">
+            <input
+              class="bg-black text-white text-center w-full"
+              :value="face.name || '?'"
+              @blur="(event: any) => handleFaceNameChange(face.id, event.target.value)"
+            />
+            <img :src="face.dataUrl" class="rounded-full w-16" />
+          </div>
         </div>
       </div>
 

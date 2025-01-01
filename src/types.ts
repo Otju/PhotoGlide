@@ -8,3 +8,17 @@ type FaceDetection = {
     _height: number
   }
 }
+
+type Face = {
+  id: string
+  name: string
+  bounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  imageID: string
+  dataUrl: string
+  embedding: number[]
+}

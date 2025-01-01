@@ -3,6 +3,7 @@ import fs from 'fs'
 import Store from 'electron-store'
 import { ExifTool, exiftoolPath } from 'exiftool-vendored'
 import dayjs from 'dayjs'
+import { v4 as randomUUID } from 'uuid'
 
 const store = new Store()
 
@@ -80,7 +81,14 @@ const getImageMetadata = async (folderName, imageName) => {
     imageDate = date.format('YYYY:MM:DD HH:mm:ss')
   }
 
-  return { imageDescription, imageDate }
+  let imageID = imageMetadata?.ImageUniqueID
+
+  if (!imageID) {
+    imageID = randomUUID()
+    await updateImageId(folderName, imageName, imageID)
+  }
+
+  return { imageDescription, imageDate, imageID }
 }
 
 const updateImageMetaData = async (folderName, imageName, newValue) => {
@@ -99,6 +107,10 @@ const updateImageDescription = async (folderName, imageName, newDescription) => 
 
 const updateImageDate = async (folderName, imageName, newDate) => {
   await updateImageMetaData(folderName, imageName, { AllDates: newDate })
+}
+
+const updateImageId = async (folderName, imageName, newId) => {
+  await updateImageMetaData(folderName, imageName, { ImageUniqueID: newId })
 }
 
 const createWindow = async () => {
@@ -145,9 +157,9 @@ const createWindow = async () => {
   const menu = Menu.buildFromTemplate(menuTemplate)
   Menu.setApplicationMenu(menu)
 
-  //if (process.env.NODE_ENV === 'development') {
-  win.webContents.openDevTools()
-  //}
+  if (process.env.NODE_ENV === 'development') {
+    win.webContents.openDevTools()
+  }
 
   const selectMode = (mode) => {
     const item = menu.getMenuItemById(mode)
@@ -218,6 +230,14 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('deleteFolder', (event, folderName) => {
     fs.rmdirSync(`${defaultFolder}\\${folderName}`, { recursive: true })
+  })
+
+  ipcMain.handle('setFaces', (event, facesString) => {
+    store.set('faces', JSON.parse(facesString))
+  })
+
+  ipcMain.handle('getFaces', (event) => {
+    return store.get('faces') || {}
   })
 
   app.on('activate', () => {

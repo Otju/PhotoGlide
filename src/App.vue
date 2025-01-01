@@ -9,6 +9,7 @@ const folders = ref<Folders>({})
 const currentFolder = ref<string>('')
 const thumbnails = ref<{ [key: string]: string }>({})
 const albumHasRenameInputOpen = ref<{ [key: string]: boolean }>({})
+const allFaces = ref<{ [key: string]: Face[] }>({})
 
 onMounted(async () => {
   await refreshFiles()
@@ -23,6 +24,9 @@ onMounted(async () => {
     const imageData = await ipcRenderer.invoke('getImage', folderName, file)
     thumbnails.value[folderName] = imageData
   }
+
+  const faces: { [key: string]: Face[] } = await ipcRenderer.invoke('getFaces')
+  allFaces.value = faces
 })
 
 const createNewAlbum = async () => {
@@ -52,6 +56,11 @@ const openAlbum = (folderName: string) => {
 const closeAlbum = () => {
   currentFolder.value = ''
 }
+
+const setFacesForImage = async (imageID: string, faces: Face[]) => {
+  allFaces.value[imageID] = faces
+  await ipcRenderer.invoke('setFaces', JSON.stringify(allFaces.value))
+}
 </script>
 
 <template>
@@ -80,6 +89,8 @@ const closeAlbum = () => {
       :folders="folders"
       :currentFolder="currentFolder"
       :closeAlbum="closeAlbum"
+      :allFaces="allFaces"
+      :setFacesForImage="setFacesForImage"
     />
   </main>
 </template>
