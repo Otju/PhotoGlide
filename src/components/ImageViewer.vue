@@ -48,6 +48,7 @@ const files = ref<string[]>([])
 const imageIndex = ref<number>(-1)
 const folderRenameName = ref<string>('')
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const faceCanvasRef = ref<HTMLCanvasElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
 const zoomRef = ref<number>(1)
 const posRef = ref<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -60,6 +61,7 @@ const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
 const detectionResult = ref<Result | null>(null)
+const faceImages = ref<string[]>([])
 const mouseRef = ref<{
   x: number
   y: number
@@ -119,11 +121,33 @@ const selectImage = async (fileIndex: number) => {
 
 const getFaces = async () => {
   if (!imageRef.value) return
+  faceImages.value = []
 
   const result = await human.detect(imageRef.value)
 
   detectionResult.value = result
   drawImage({ pos: posRef.value, scale: zoomRef.value })
+
+  const canvas = faceCanvasRef.value
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  detectionResult.value.face.forEach((face) => {
+    const { box } = face
+    if (imageRef.value && detectionResult.value) {
+      const { x, y, width, height } = boxCoordinatesToImageCoords({
+        box,
+        imageWidth: detectionResult.value.width,
+        imageHeight: detectionResult.value.height,
+        renderedWidth: imageRef.value.width,
+        renderedHeight: imageRef.value.height,
+      })
+      ctx.drawImage(imageRef.value, x, y, width, height, 0, 0, 50, 50)
+      const dataUrl = canvas.toDataURL('image/jpeg')
+      faceImages.value.push(dataUrl)
+    }
+  })
 }
 
 const currentImage = () => {
@@ -259,16 +283,25 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
     ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
 
     if (detectionResult.value) {
-      const { face: faces, height, width } = detectionResult.value
+      const { face: faces, width: detectionImageWidth, height: detetionImageHeight } = detectionResult.value
       faces.forEach((face) => {
         ctx.strokeStyle = 'red'
         ctx.lineWidth = 2
-        ctx.strokeRect(
-          (face.box[0] / width) * renderedWidth + xOffset,
-          (face.box[1] / height) * renderedHeight + yOffset,
-          (face.box[2] / width) * renderedWidth,
-          (face.box[3] / height) * renderedHeight
-        )
+        const {
+          x: boxX,
+          y: boxY,
+          width: boxWidth,
+          height: boxHeight,
+        } = boxCoordinatesToImageCoords({
+          box: face.box,
+          imageWidth: detectionImageWidth,
+          imageHeight: detetionImageHeight,
+          renderedWidth,
+          renderedHeight,
+          xOffset,
+          yOffset,
+        })
+        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight)
       })
     }
   } else {
@@ -379,6 +412,30 @@ const exifDateToPrettyDate = (exifDate: string) => {
   }
 
   return ''
+}
+
+const boxCoordinatesToImageCoords = ({
+  box,
+  imageWidth,
+  imageHeight,
+  renderedWidth,
+  renderedHeight,
+  xOffset = 0,
+  yOffset = 0,
+}: {
+  box: [number, number, number, number]
+  imageWidth: number
+  imageHeight: number
+  renderedWidth: number
+  renderedHeight: number
+  xOffset?: number
+  yOffset?: number
+}) => {
+  const x = (box[0] / imageWidth) * renderedWidth + xOffset
+  const y = (box[1] / imageHeight) * renderedHeight + yOffset
+  const width = (box[2] / imageWidth) * renderedWidth
+  const height = (box[3] / imageHeight) * renderedHeight
+  return { x, y, width, height }
 }
 
 const moveItemToFolder = async (folder: string) => {
@@ -561,6 +618,12 @@ const setNewDateBasedOnFileName = async () => {
         </div>
 
         <button @click="getFaces" class="bg-white text-black p-2 rounded-md">Detect Faces</button>
+
+        <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
+
+        <div class="flex flex-wrap gap-4 justify-center">
+          <img v-for="faceImage in faceImages" :src="faceImage" class="rounded-full w-16" />
+        </div>
       </div>
 
       <button
