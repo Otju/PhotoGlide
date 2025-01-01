@@ -5,21 +5,21 @@ import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
 import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
-import Human, { FaceResult, Config } from '@vladmandic/human'
+import Human, { Config, Result } from '@vladmandic/human'
 
 const { ipcRenderer } = window.require('electron')
 
 const humanConfig: Partial<Config> = {
   cacheSensitivity: 0,
   modelBasePath: '../../models',
-  cacheModels: false,
   debug: true,
-  filter: { enabled: true, equalization: false, flip: false },
+  filter: { enabled: true, equalization: true, flip: false, width: 0, height: 0, autoBrightness: true },
   face: {
     enabled: true,
-    detector: { rotation: false, maxDetected: 100, minConfidence: 0.15, return: false, iouThreshold: 0.01 },
+    detector: { rotation: true, maxDetected: 100, minConfidence: 0.15, return: false, iouThreshold: 0.01 },
+    mesh: { enabled: true },
     iris: { enabled: false },
-    description: { enabled: false },
+    description: { enabled: true },
     emotion: { enabled: false },
     antispoof: { enabled: false },
     liveness: { enabled: false },
@@ -59,7 +59,7 @@ const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
 const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
-const detectedFaces = ref<FaceResult[]>([])
+const detectionResult = ref<Result | null>(null)
 const mouseRef = ref<{
   x: number
   y: number
@@ -76,7 +76,7 @@ const mouseRef = ref<{
 const dateGuessBasedOnFileName = ref<string | null>(null)
 
 const selectImage = async (fileIndex: number) => {
-  detectedFaces.value = []
+  detectionResult.value = null
   if (fileIndex < 0) return
   let index = fileIndex
   imageAngle.value = randomImageAngle()
@@ -120,9 +120,9 @@ const selectImage = async (fileIndex: number) => {
 const getFaces = async () => {
   if (!imageRef.value) return
 
-  const response = await human.detect(imageRef.value)
+  const result = await human.detect(imageRef.value)
 
-  detectedFaces.value = response.face
+  detectionResult.value = result
   drawImage({ pos: posRef.value, scale: zoomRef.value })
 }
 
@@ -258,16 +258,19 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   if (viewMode.value === 'edit-mode') {
     ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
 
-    detectedFaces.value.forEach((face) => {
-      ctx.strokeStyle = 'red'
-      ctx.lineWidth = 2
-      ctx.strokeRect(
-        (face.box[0] / image.width) * renderedWidth + xOffset,
-        (face.box[1] / image.height) * renderedHeight + yOffset,
-        (face.box[2] / image.width) * renderedWidth,
-        (face.box[3] / image.height) * renderedHeight
-      )
-    })
+    if (detectionResult.value) {
+      const { face: faces, height, width } = detectionResult.value
+      faces.forEach((face) => {
+        ctx.strokeStyle = 'red'
+        ctx.lineWidth = 2
+        ctx.strokeRect(
+          (face.box[0] / width) * renderedWidth + xOffset,
+          (face.box[1] / height) * renderedHeight + yOffset,
+          (face.box[2] / width) * renderedWidth,
+          (face.box[3] / height) * renderedHeight
+        )
+      })
+    }
   } else {
     ctx.save()
     ctx.translate(x, y)
