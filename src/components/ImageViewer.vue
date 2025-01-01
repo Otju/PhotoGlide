@@ -625,7 +625,7 @@ const handleFaceNameChange = (id: string, newName: string) => {
       tabindex="1"
     ></canvas>
     <template v-if="viewMode === 'edit-mode'">
-      <div class="bg-black h-[100vh] p-4 flex flex-col gap-8" :style="{ width: sideBarWidth + 'px' }">
+      <div class="bg-black h-[100vh] p-4 flex flex-col gap-8 overflow-y-scroll" :style="{ width: sideBarWidth + 'px' }">
         <div class="flex flex-col">
           <label class="bg-white text-black w-fit px-2 rounded-t-md">Description</label>
           <textarea
@@ -658,8 +658,8 @@ const handleFaceNameChange = (id: string, newName: string) => {
 
         <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
 
-        <div class="flex flex-col gap-2 w-full">
-          <div v-for="face in imageFaces" class="text-white flex flex-col items-center gap-1 w-full">
+        <div class="flex flex-col gap-3 w-full">
+          <div v-for="face in imageFaces" class="text-white flex flex-col items-center w-full">
             <input
               class="bg-black text-white text-center w-full"
               :value="face.name || '?'"
