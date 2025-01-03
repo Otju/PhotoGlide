@@ -261,7 +261,9 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('setFacesForImage', async (event, folderName, imageName, { imageWidth, imageHeight, faces }) => {
-    const names = faces.map((face) => face.name).filter((name) => name)
+    const names = faces
+      .sort((a, b) => a.bounds.x - b.bounds.x) // Sort from left to right
+      .map((face) => face.name || '???')
 
     const newMetadata = {
       PersonInImage: names,
