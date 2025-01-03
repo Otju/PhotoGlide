@@ -1,24 +1,24 @@
 type Folders = { [key: string]: string[] }
 
-type FaceDetection = {
-  _box: {
-    _x: number
-    _y: number
-    _width: number
-    _height: number
-  }
-}
-
-type Face = {
+type GlobalFace = {
   id: string
   name: string
-  bounds: {
-    x: number
-    y: number
-    width: number
-    height: number
-  }
+  bounds: Bounds
   imageID: string
   dataUrl: string
-  embedding: number[]
+  embedding?: number[]
+}
+
+type GlobalFaceWithEmbedding = GlobalFace & { embedding: number[] }
+
+type LocalFace = {
+  name: string
+  bounds: Bounds
+}
+
+type Bounds = {
+  x: number
+  y: number
+  width: number
+  height: number
 }

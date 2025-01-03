@@ -5,8 +5,9 @@ import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
 import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
-import Human, { Config, Result } from '@vladmandic/human'
+import Human, { Config } from '@vladmandic/human'
 import { v4 as randomUUID } from 'uuid'
+import deepEqual from 'deep-equal'
 
 const { ipcRenderer } = window.require('electron')
 
@@ -37,10 +38,10 @@ const human = new Human(humanConfig)
 const props = defineProps<{
   folders: Folders
   currentFolder: string
-  allFaces: { [key: string]: Face[] }
+  globalFaces: { [key: string]: GlobalFace[] }
   refreshFiles: () => Promise<void>
   closeAlbum: () => void
-  setFacesForImage: (imageID: string, faces: Face[]) => void
+  setGlobalFacesForImage: (imageID: string, faces: GlobalFace[]) => Promise<void>
 }>()
 
 const sideBarWidth = 280
@@ -63,8 +64,7 @@ const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
 const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
-const imageFaces = ref<Face[]>([])
-const detectionResult = ref<Result | null>(null)
+const imageFaces = ref<GlobalFace[]>([])
 const currentImageID = ref<string | null>(null)
 const mouseRef = ref<{
   x: number
@@ -82,7 +82,6 @@ const mouseRef = ref<{
 const dateGuessBasedOnFileName = ref<string | null>(null)
 
 const selectImage = async (fileIndex: number) => {
-  detectionResult.value = null
   imageFaces.value = []
   if (fileIndex < 0) return
   let index = fileIndex
@@ -114,19 +113,46 @@ const selectImage = async (fileIndex: number) => {
   imageRef.value.src = `data:image/jpg;base64,${imageData}`
   isImage.value = true
 
-  const { imageDescription, imageDate, imageID } = await ipcRenderer.invoke(
-    'getImageMetadata',
-    props.currentFolder,
-    files.value[index]
-  )
+  const {
+    imageDescription,
+    imageDate,
+    imageID,
+    imageFaces: newLocalFaces,
+  } = await ipcRenderer.invoke('getImageMetadata', props.currentFolder, files.value[index])
+
+  const localFaces = (newLocalFaces ?? []) as LocalFace[]
+
+  const globalFaces = props.globalFaces[imageID] ?? []
+
+  const globalFacesAsLocal: LocalFace[] = globalFaces.map(({ name, bounds }) => ({ name, bounds }))
+
+  const localMatchesGlobal = deepEqual(localFaces, globalFacesAsLocal, { strict: true })
+
+  if (!localMatchesGlobal) {
+    if (localFaces.length > 0) {
+      const newGlobalFaces = localFaces.map(({ name, bounds }) => {
+        const dataUrl = getFaceDataUrl(bounds)
+        return {
+          name,
+          bounds,
+          dataUrl: dataUrl,
+          id: randomUUID(),
+          imageID,
+        }
+      })
+      imageFaces.value = newGlobalFaces
+      await props.setGlobalFacesForImage(imageID, newGlobalFaces)
+    } else {
+      imageFaces.value = globalFaces
+      await setImageMetadataFaces()
+    }
+  } else {
+    imageFaces.value = globalFaces
+  }
 
   description.value = imageDescription ?? ''
   captureDate.value = imageDate ?? defaultCaptureDate
   currentImageID.value = imageID ?? null
-
-  if (currentImageID.value) {
-    imageFaces.value = props.allFaces[currentImageID.value] ?? []
-  }
 }
 
 const getFaces = async () => {
@@ -134,32 +160,28 @@ const getFaces = async () => {
   imageFaces.value = []
   const imageID = currentImageID.value
 
-  const result = await human.detect(imageRef.value)
+  const detectionResult = await human.detect(imageRef.value)
 
-  detectionResult.value = result
-  drawImage({ pos: posRef.value, scale: zoomRef.value })
+  const otherFaces = Object.entries(props.globalFaces)
+    .flatMap(([id, faces]) => (id === currentImageID.value ? [] : faces))
+    .filter((face) => face.embedding) as GlobalFaceWithEmbedding[]
 
-  const canvas = faceCanvasRef.value
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const otherFaces = Object.entries(props.allFaces).flatMap(([id, faces]) => (id === currentImageID.value ? [] : faces))
   const embeddingArray = otherFaces.map((face) => face.embedding)
 
-  detectionResult.value.face.forEach((face) => {
+  const newGlobalFaces: GlobalFace[] = []
+
+  detectionResult.face.forEach((face) => {
     const { box, embedding } = face
-    if (imageRef.value && detectionResult.value && embedding) {
-      const bounds = boxCoordinatesToFaceBounds({
+    if (imageRef.value && embedding) {
+      const bounds = scaleCoordinatesToImage({
         box,
-        imageWidth: detectionResult.value.width,
-        imageHeight: detectionResult.value.height,
+        imageWidth: detectionResult.width,
+        imageHeight: detectionResult.height,
         renderedWidth: imageRef.value.width,
         renderedHeight: imageRef.value.height,
       })
-      const { x, y, width, height } = bounds
-      ctx.drawImage(imageRef.value, x, y, width, height, 0, 0, 50, 50)
-      const dataUrl = canvas.toDataURL('image/jpeg')
+
+      const dataUrl = getFaceDataUrl(bounds)
 
       let name = ''
 
@@ -170,11 +192,36 @@ const getFaces = async () => {
         name = bestMatch.name
       }
 
-      imageFaces.value.push({ bounds, name, dataUrl, embedding, id: randomUUID(), imageID })
+      newGlobalFaces.push({ name, dataUrl, embedding, id: randomUUID(), imageID, bounds })
     }
   })
 
-  props.setFacesForImage(currentImageID.value, imageFaces.value)
+  await props.setGlobalFacesForImage(currentImageID.value, newGlobalFaces)
+
+  imageFaces.value = newGlobalFaces
+  await setImageMetadataFaces()
+
+  drawImage({ pos: posRef.value, scale: zoomRef.value })
+}
+
+const getFaceDataUrl = ({ x, y, width, height }: Bounds) => {
+  const canvas = faceCanvasRef.value
+  if (!canvas || !imageRef.value) return ''
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return ''
+  ctx.drawImage(imageRef.value, x, y, width, height, 0, 0, 50, 50)
+  const dataUrl = canvas.toDataURL('image/jpeg')
+  return dataUrl
+}
+
+const setImageMetadataFaces = async () => {
+  const newLocalFaces = imageFaces.value.map(({ name, bounds }) => ({ name, bounds: { ...bounds } }))
+
+  await ipcRenderer.invoke('setFacesForImage', props.currentFolder, currentImage(), {
+    imageWidth: imageRef.value?.width || 0,
+    imageHeight: imageRef.value?.height || 0,
+    faces: newLocalFaces.map(({ name, bounds }) => ({ name, bounds })),
+  })
 }
 
 const currentImage = () => {
@@ -244,10 +291,6 @@ onMounted(async () => {
   })
 
   canvasRef.value?.focus()
-
-  if (currentImageID.value) {
-    imageFaces.value = props.allFaces[currentImageID.value] ?? []
-  }
 })
 
 watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
@@ -313,28 +356,24 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   if (viewMode.value === 'edit-mode') {
     ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
 
-    if (detectionResult.value) {
-      const { face: faces, width: detectionImageWidth, height: detetionImageHeight } = detectionResult.value
-      faces.forEach((face) => {
-        ctx.strokeStyle = 'red'
-        ctx.lineWidth = 2
-        const {
-          x: boxX,
-          y: boxY,
-          width: boxWidth,
-          height: boxHeight,
-        } = boxCoordinatesToFaceBounds({
-          box: face.box,
-          imageWidth: detectionImageWidth,
-          imageHeight: detetionImageHeight,
-          renderedWidth,
-          renderedHeight,
-          xOffset,
-          yOffset,
-        })
-        ctx.strokeRect(boxX, boxY, boxWidth, boxHeight)
+    imageFaces.value.forEach((face) => {
+      ctx.strokeStyle = 'red'
+      ctx.lineWidth = 2
+
+      const { x, y, width, height } = face.bounds
+
+      const scaled = scaleCoordinatesToImage({
+        box: [x, y, width, height],
+        imageWidth: image.width,
+        imageHeight: image.height,
+        renderedWidth,
+        renderedHeight,
+        xOffset,
+        yOffset,
       })
-    }
+
+      ctx.strokeRect(scaled.x, scaled.y, scaled.width, scaled.height)
+    })
   } else {
     ctx.save()
     ctx.translate(x, y)
@@ -445,7 +484,7 @@ const exifDateToPrettyDate = (exifDate: string) => {
   return ''
 }
 
-const boxCoordinatesToFaceBounds = ({
+const scaleCoordinatesToImage = ({
   box,
   imageWidth,
   imageHeight,
@@ -605,10 +644,14 @@ const setNewDateBasedOnFileName = async () => {
   }
 }
 
-const handleFaceNameChange = (id: string, newName: string) => {
+const handleFaceNameChange = async (id: string, newName: string) => {
   const face = imageFaces.value.find((face) => face.id === id)
   if (!face) return
   face.name = newName
+  if (currentImageID.value) {
+    await props.setGlobalFacesForImage(currentImageID.value, imageFaces.value)
+  }
+  await setImageMetadataFaces()
 }
 </script>
 
@@ -662,7 +705,8 @@ const handleFaceNameChange = (id: string, newName: string) => {
           <div v-for="face in imageFaces" class="text-white flex flex-col items-center w-full">
             <input
               class="bg-black text-white text-center w-full"
-              :value="face.name || '?'"
+              :value="face.name"
+              placeholder="?"
               @blur="(event: any) => handleFaceNameChange(face.id, event.target.value)"
             />
             <img :src="face.dataUrl" class="rounded-full w-16" />

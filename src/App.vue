@@ -9,7 +9,7 @@ const folders = ref<Folders>({})
 const currentFolder = ref<string>('')
 const thumbnails = ref<{ [key: string]: string }>({})
 const albumHasRenameInputOpen = ref<{ [key: string]: boolean }>({})
-const allFaces = ref<{ [key: string]: Face[] }>({})
+const globalFaces = ref<{ [key: string]: GlobalFace[] }>({})
 
 onMounted(async () => {
   await refreshFiles()
@@ -25,8 +25,8 @@ onMounted(async () => {
     thumbnails.value[folderName] = imageData
   }
 
-  const faces: { [key: string]: Face[] } = await ipcRenderer.invoke('getFaces')
-  allFaces.value = faces
+  const faces: { [key: string]: GlobalFace[] } = await ipcRenderer.invoke('getFaces')
+  globalFaces.value = faces
 })
 
 const createNewAlbum = async () => {
@@ -57,9 +57,9 @@ const closeAlbum = () => {
   currentFolder.value = ''
 }
 
-const setFacesForImage = async (imageID: string, faces: Face[]) => {
-  allFaces.value[imageID] = faces
-  await ipcRenderer.invoke('setFaces', JSON.stringify(allFaces.value))
+const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
+  globalFaces.value[imageID] = faces
+  await ipcRenderer.invoke('setFaces', JSON.stringify(globalFaces.value))
 }
 </script>
 
@@ -89,8 +89,8 @@ const setFacesForImage = async (imageID: string, faces: Face[]) => {
       :folders="folders"
       :currentFolder="currentFolder"
       :closeAlbum="closeAlbum"
-      :allFaces="allFaces"
-      :setFacesForImage="setFacesForImage"
+      :globalFaces="globalFaces"
+      :setGlobalFacesForImage="setGlobalFacesForImage"
     />
   </main>
 </template>

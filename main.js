@@ -88,7 +88,27 @@ const getImageMetadata = async (folderName, imageName) => {
     await updateImageId(folderName, imageName, imageID)
   }
 
-  return { imageDescription, imageDate, imageID }
+  const { RegionInfo } = imageMetadata
+  const { W: imageWidth, H: imageHeight } = RegionInfo?.AppliedToDimensions || {}
+  const { RegionList } = RegionInfo || {}
+
+  const imageFaces =
+    RegionList?.map((region) => {
+      const { Area, Name } = region
+      const { H, W, X, Y } = Area
+
+      const height = H * imageHeight
+      const width = W * imageWidth
+
+      // X/Y is center, face.bounds is top left corner
+
+      const x = X * imageWidth - width / 2
+      const y = Y * imageHeight - height / 2
+
+      return { name: Name, bounds: { x, y, width, height } }
+    }) || []
+
+  return { imageDescription, imageDate, imageID, imageFaces }
 }
 
 const updateImageMetaData = async (folderName, imageName, newValue) => {
@@ -238,6 +258,39 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('getFaces', (event) => {
     return store.get('faces') || {}
+  })
+
+  ipcMain.handle('setFacesForImage', async (event, folderName, imageName, { imageWidth, imageHeight, faces }) => {
+    const names = faces.map((face) => face.name).filter((name) => name)
+
+    const newMetadata = {
+      PersonInImage: names,
+      Subject: names,
+      RegionInfo: {
+        AppliedToDimensions: {
+          H: imageHeight,
+          Unit: 'pixel',
+          W: imageWidth,
+        },
+        RegionList: faces.map((face) => {
+          const H = face.bounds.height / imageHeight
+          const W = face.bounds.width / imageWidth
+
+          // face.bounds is top left corner, X/Y is center
+          const X = (face.bounds.x + face.bounds.width / 2) / imageWidth
+          const Y = (face.bounds.y + face.bounds.height / 2) / imageHeight
+
+          return {
+            Area: { H, W, X, Y },
+            Name: face.name || '',
+            Rotation: 0,
+            Type: 'Face',
+          }
+        }),
+      },
+    }
+
+    await updateImageMetaData(folderName, imageName, newMetadata)
   })
 
   app.on('activate', () => {
