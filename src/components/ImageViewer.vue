@@ -14,6 +14,7 @@ const { ipcRenderer } = window.require('electron')
 const humanConfig: Partial<Config> = {
   cacheSensitivity: 0,
   modelBasePath: '../../models',
+  backend: 'webgl', // webgpu might be better but not currently working on my machine
   debug: false,
   filter: { enabled: true, equalization: true, flip: false, width: 0, height: 0, autoBrightness: true },
   face: {
@@ -297,6 +298,8 @@ onMounted(async () => {
   })
 
   canvasRef.value?.focus()
+
+  await human.load(humanConfig)
 })
 
 watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
