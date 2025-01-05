@@ -66,18 +66,21 @@ const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
 const imageFaces = ref<GlobalFace[]>([])
 const currentImageID = ref<string | null>(null)
+const faceSquareStart = ref<{ x: number; y: number } | null>(null)
 const mouseRef = ref<{
   x: number
   y: number
   oldX: number
   oldY: number
-  button: boolean
+  leftButton: boolean
+  rightButton: boolean
 }>({
   x: 0,
   y: 0,
   oldX: 0,
   oldY: 0,
-  button: false,
+  leftButton: false,
+  rightButton: false,
 })
 const dateGuessBasedOnFileName = ref<string | null>(null)
 
@@ -209,6 +212,8 @@ const getFaceDataUrl = ({ x, y, width, height }: Bounds) => {
   if (!canvas || !imageRef.value) return ''
   const ctx = canvas.getContext('2d')
   if (!ctx) return ''
+  ctx.fillStyle = 'black'
+  ctx.fillRect(0, 0, 100, 100)
   ctx.drawImage(imageRef.value, x, y, width, height, 0, 0, 50, 50)
   const dataUrl = canvas.toDataURL('image/jpeg')
   return dataUrl
@@ -322,29 +327,12 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5])
 
-  let renderedWidth = 1
-  let renderedHeight = 1
-  let xOffset = 0
-  let yOffset = 0
-
-  const isVertical = image.height / canvas.height > image.width / canvas.width
-
-  if (isVertical) {
-    const ratio = canvas.height / image.height
-    renderedHeight = canvas.height
-    renderedWidth = image.width * ratio
-    xOffset = (canvas.width - renderedWidth) / 2
-  } else {
-    const ratio = canvas.width / image.width
-    renderedWidth = canvas.width
-    renderedHeight = image.height * ratio
-    yOffset = (canvas.height - renderedHeight) / 2
-  }
-
   const scaleRatio = 0.6
   const x = canvas.width / 2
   const y = canvas.height / 2
   ctx.fillStyle = 'white'
+
+  const { renderedWidth, renderedHeight, xOffset, yOffset } = calculateSizeAndOffset(image, canvas)
 
   const labelHeight = renderedWidth * 0.2
   const labelPercentageWidth = 0.8
@@ -355,6 +343,18 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 
   if (viewMode.value === 'edit-mode') {
     ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
+
+    if (mouseRef.value.rightButton && faceSquareStart.value) {
+      ctx.strokeStyle = 'red'
+      ctx.lineWidth = 2
+
+      const x = faceSquareStart.value.x
+      const y = faceSquareStart.value.y
+      const width = mouseRef.value.x - x
+      const height = mouseRef.value.y - y
+
+      ctx.strokeRect(x, y, width, height)
+    }
 
     imageFaces.value.forEach((face) => {
       ctx.strokeStyle = 'red'
@@ -465,6 +465,29 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   }
 }
 
+const calculateSizeAndOffset = (image: HTMLImageElement, canvas: HTMLCanvasElement) => {
+  let renderedWidth = 1
+  let renderedHeight = 1
+  let xOffset = 0
+  let yOffset = 0
+
+  const isVertical = image.height / canvas.height > image.width / canvas.width
+
+  if (isVertical) {
+    const ratio = canvas.height / image.height
+    renderedHeight = canvas.height
+    renderedWidth = image.width * ratio
+    xOffset = (canvas.width - renderedWidth) / 2
+  } else {
+    const ratio = canvas.width / image.width
+    renderedWidth = canvas.width
+    renderedHeight = image.height * ratio
+    yOffset = (canvas.height - renderedHeight) / 2
+  }
+
+  return { renderedWidth, renderedHeight, xOffset, yOffset }
+}
+
 const exifDateToPrettyDate = (exifDate: string) => {
   const [date] = splitAt(10, exifDate).map((x) => x.replace(/ /g, ''))
   const [year, month, day] = date.split(':')
@@ -500,6 +523,7 @@ const scaleCoordinatesToImage = ({
   renderedHeight: number
   xOffset?: number
   yOffset?: number
+  reverse?: boolean
 }) => {
   const x = (box[0] / imageWidth) * renderedWidth + xOffset
   const y = (box[1] / imageHeight) * renderedHeight + yOffset
@@ -566,17 +590,35 @@ const handleScroll = (event: WheelEvent) => {
 const handleMouse = (event: MouseEvent) => {
   const mouse = mouseRef.value
   if (event.type === 'mousedown') {
-    mouse.button = true
+    if (event.button === 0) {
+      mouse.leftButton = true
+    } else {
+      startFaceSquare()
+    }
   }
-  if (event.type === 'mouseup' || event.type === 'mouseout') {
-    mouse.button = false
+  if (event.type === 'mouseup') {
+    if (event.button === 0) {
+      mouse.leftButton = false
+    } else {
+      finishFaceSquare()
+    }
+  }
+  if (event.type === 'mouseout') {
+    if (mouse.rightButton) {
+      finishFaceSquare()
+    }
+    mouse.leftButton = false
   }
   mouse.oldX = mouse.x
   mouse.oldY = mouse.y
   mouse.x = event.offsetX
   mouse.y = event.offsetY
-  if (mouse.button) {
+  if (mouse.leftButton) {
     pan({ x: mouse.x - mouse.oldX, y: mouse.y - mouse.oldY })
+    drawImage({ pos: posRef.value, scale: zoomRef.value })
+  }
+
+  if (mouse.rightButton) {
     drawImage({ pos: posRef.value, scale: zoomRef.value })
   }
 }
@@ -612,6 +654,50 @@ const pan = (amount: { x: number; y: number }) => {
   if (pos.y < -height + window.innerHeight) {
     pos.y = -height + window.innerHeight
   }
+}
+
+const startFaceSquare = () => {
+  const mouse = mouseRef.value
+  faceSquareStart.value = { x: mouse.x, y: mouse.y }
+
+  mouseRef.value.rightButton = true
+}
+
+const finishFaceSquare = async () => {
+  mouseRef.value.rightButton = false
+
+  if (!faceSquareStart.value || !currentImageID.value) return
+
+  const x = faceSquareStart.value.x
+  const y = faceSquareStart.value.y
+  const width = mouseRef.value.x - x
+  const height = mouseRef.value.y - y
+
+  const canvas = canvasRef.value
+  const image = imageRef.value
+  if (!canvas || !image) return
+
+  const { renderedWidth, renderedHeight, xOffset, yOffset } = calculateSizeAndOffset(image, canvas)
+
+  const bounds = scaleCoordinatesToImage({
+    box: [x, y, width, height],
+    imageWidth: renderedWidth,
+    imageHeight: renderedHeight,
+    renderedWidth: image.width,
+    renderedHeight: image.height,
+    xOffset: (-xOffset / renderedWidth) * image.width,
+    yOffset: (-yOffset / renderedHeight) * image.height,
+  })
+
+  const dataUrl = getFaceDataUrl(bounds)
+  const name = ''
+  const imageID = currentImageID.value
+
+  imageFaces.value.push({ name, dataUrl, id: randomUUID(), imageID, bounds })
+
+  await props.setGlobalFacesForImage(imageID, imageFaces.value)
+
+  await setImageMetadataFaces()
 }
 
 const getDateFromFileName = (fileName: string) => {
@@ -731,7 +817,6 @@ const handleFaceNameChange = async (id: string, newName: string) => {
       <button
         @click="nextImage"
         class="absolute abs-center-y right-4 text-3xl abs-button"
-        tabindex="9"
         :style="{ marginRight: sideBarWidth + 'px' }"
       >
         >
