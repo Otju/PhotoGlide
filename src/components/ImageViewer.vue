@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { split } from 'canvas-hypertxt'
 import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
-import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon } from '@heroicons/vue/24/solid'
+import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon, TrashIcon } from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
 import Human, { Config } from '@vladmandic/human'
 import { v4 as randomUUID } from 'uuid'
@@ -67,6 +67,7 @@ const imageAngle = ref<number>(randomImageAngle())
 const imageFaces = ref<GlobalFace[]>([])
 const currentImageID = ref<string | null>(null)
 const faceSquareStart = ref<{ x: number; y: number } | null>(null)
+const isAskingForDeletionConfirmation = ref<boolean>(false)
 const mouseRef = ref<{
   x: number
   y: number
@@ -698,6 +699,9 @@ const finishFaceSquare = async () => {
   await props.setGlobalFacesForImage(imageID, imageFaces.value)
 
   await setImageMetadataFaces()
+
+  faceSquareStart.value = null
+  drawImage({ pos: posRef.value, scale: zoomRef.value })
 }
 
 const getDateFromFileName = (fileName: string) => {
@@ -739,12 +743,38 @@ const handleFaceNameChange = async (id: string, newName: string) => {
   }
   await setImageMetadataFaces()
 }
+
+const handleFaceDelete = async (id: string) => {
+  if (!currentImageID.value) return
+
+  if (isAskingForDeletionConfirmation.value) {
+    const index = imageFaces.value.findIndex((face) => face.id === id)
+    const nextFace = imageFaces.value[index + 1] ?? imageFaces.value[index - 1]
+
+    imageFaces.value = imageFaces.value.filter((face) => face.id !== id)
+
+    await props.setGlobalFacesForImage(currentImageID.value, imageFaces.value)
+    await setImageMetadataFaces()
+
+    drawImage({ pos: posRef.value, scale: zoomRef.value })
+
+    const idToFocus = nextFace?.id ?? 'canvas'
+    const element = document.getElementById(idToFocus)
+
+    if (element) {
+      element.focus()
+    }
+  } else {
+    isAskingForDeletionConfirmation.value = true
+  }
+}
 </script>
 
 <template>
   <div class="flex">
     <canvas
       ref="canvasRef"
+      id="canvas"
       @keydown="handleKeyPress"
       @wheel="handleScroll"
       @mousedown="handleMouse"
@@ -787,15 +817,26 @@ const handleFaceNameChange = async (id: string, newName: string) => {
 
         <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
 
-        <div class="flex flex-col gap-3 w-full">
+        <div class="grid grid-cols-2 gap-3 w-full">
           <div v-for="face in imageFaces" class="text-white flex flex-col items-center w-full">
             <input
               class="bg-black text-white text-center w-full"
+              :id="face.id"
               :value="face.name"
               placeholder="?"
               @blur="(event: any) => handleFaceNameChange(face.id, event.target.value)"
             />
-            <img :src="face.dataUrl" class="rounded-full w-16" />
+            <div class="relative">
+              <img :src="face.dataUrl" class="rounded-full w-16" />
+              <button
+                @click="handleFaceDelete(face.id)"
+                class="absolute top-0 right-0 bg-white text-black p-1 rounded-full w-16 h-16 flex items-center justify-center opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity ease-in-out duration-200"
+                @blur="isAskingForDeletionConfirmation = false"
+              >
+                <span v-if="isAskingForDeletionConfirmation" class="font-bold text-sm">Are you sure?</span>
+                <TrashIcon v-else class="size-8" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
