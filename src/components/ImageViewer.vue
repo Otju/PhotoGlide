@@ -349,10 +349,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.strokeStyle = 'red'
       ctx.lineWidth = 2
 
-      const x = faceSquareStart.value.x
-      const y = faceSquareStart.value.y
-      const width = mouseRef.value.x - x
-      const height = mouseRef.value.y - y
+      const { x, y, width, height } = getSquareFromMouse()
 
       ctx.strokeRect(x, y, width, height)
     }
@@ -464,6 +461,15 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.drawImage(tapeImage, 0, 0)
     }
   }
+}
+
+const getSquareFromMouse = () => {
+  if (!faceSquareStart.value) return { x: 0, y: 0, width: 0, height: 0 }
+  const x = faceSquareStart.value.x
+  const y = faceSquareStart.value.y
+  const width = Math.abs(mouseRef.value.x - x) * (mouseRef.value.x < x ? -1 : 1)
+  const height = Math.abs(width) * (mouseRef.value.y < y ? -1 : 1)
+  return { x, y, width, height }
 }
 
 const calculateSizeAndOffset = (image: HTMLImageElement, canvas: HTMLCanvasElement) => {
@@ -669,10 +675,7 @@ const finishFaceSquare = async () => {
 
   if (!faceSquareStart.value || !currentImageID.value) return
 
-  const x = faceSquareStart.value.x
-  const y = faceSquareStart.value.y
-  const width = mouseRef.value.x - x
-  const height = mouseRef.value.y - y
+  const { x, y, width, height } = getSquareFromMouse()
 
   const canvas = canvasRef.value
   const image = imageRef.value
