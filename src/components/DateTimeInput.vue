@@ -154,7 +154,7 @@ const handleChange = () => {
 </script>
 
 <template>
-  <div class="pl-3 py-2 rounded-bl-lg flex bg-white">
+  <div class="pl-3 py-2 rounded-bl-lg flex bg-white text-black">
     <input
       type="input"
       v-model="day"

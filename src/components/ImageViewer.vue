@@ -927,14 +927,6 @@ const handleFaceDelete = async (id: string) => {
         </div>
       </div>
 
-      <button
-        @click="props.closeAlbum"
-        class="absolute left-4 top-2 text-3xl abs-button"
-        :style="{ marginRight: sideBarWidth + 'px' }"
-      >
-        <ArrowTurnUpLeftIcon class="size-8" />
-      </button>
-
       <div
         class="flex flex-wrap justify-center gap-4 absolute bottom-4 w-full"
         :style="{ paddingRight: sideBarWidth + 'px' }"
@@ -944,20 +936,29 @@ const handleFaceDelete = async (id: string) => {
         </button>
       </div>
     </template>
-    <button
-      @click="previousImage"
-      class="absolute abs-center-y left-4 text-3xl abs-button"
-      :style="{ marginRight: sideBarWidth + 'px' }"
-    >
-      <
-    </button>
-    <button
-      @click="nextImage"
-      class="absolute abs-center-y right-4 text-3xl abs-button"
-      :style="{ marginRight: sideBarWidth + 'px' }"
-    >
+    <template v-if="isImageDrawn">
+      <button
+        @click="props.closeAlbum"
+        class="absolute left-4 top-2 text-3xl abs-button"
+        :style="{ marginRight: sideBarWidth + 'px' }"
       >
-    </button>
+        <ArrowTurnUpLeftIcon class="size-8" />
+      </button>
+      <button
+        @click="previousImage"
+        class="absolute abs-center-y left-4 text-3xl abs-button"
+        :style="{ marginRight: sideBarWidth + 'px' }"
+      >
+        <
+      </button>
+      <button
+        @click="nextImage"
+        class="absolute abs-center-y right-4 text-3xl abs-button"
+        :style="{ marginRight: sideBarWidth + 'px' }"
+      >
+        >
+      </button>
+    </template>
   </div>
   <img src="../assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
 </template>
