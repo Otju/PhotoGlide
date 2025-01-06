@@ -102,6 +102,10 @@ const allNames = computed(() => {
   return Object.keys(namesAndCounts).sort((a, b) => namesAndCounts[b] - namesAndCounts[a])
 })
 
+const currentImage = computed(() => {
+  return files.value[imageIndex.value]
+})
+
 const selectImage = async (fileIndex: number) => {
   if (fileIndex < 0) return
   let index = fileIndex
@@ -241,15 +245,11 @@ const getFaceDataUrl = ({ x, y, width, height }: Bounds) => {
 const setImageMetadataFaces = async () => {
   const newLocalFaces = imageFaces.value.map(({ name, bounds }) => ({ name, bounds: { ...bounds } }))
 
-  await ipcRenderer.invoke('setFacesForImage', props.currentFolder, currentImage(), {
+  await ipcRenderer.invoke('setFacesForImage', props.currentFolder, currentImage.value, {
     imageWidth: imageRef.value?.width || 0,
     imageHeight: imageRef.value?.height || 0,
     faces: newLocalFaces.map(({ name, bounds }) => ({ name, bounds })),
   })
-}
-
-const currentImage = () => {
-  return files.value[imageIndex.value]
 }
 
 watch([() => props.currentFolder, () => props.folders], async ([folder], _) => {
@@ -265,7 +265,7 @@ watch(imageIndex, async (index, _) => {
 })
 
 watch(
-  () => currentImage(),
+  () => currentImage.value,
   async (image, _) => {
     dateGuessBasedOnFileName.value = getDateFromFileName(image)
   }
@@ -562,13 +562,13 @@ const scaleCoordinatesToImage = ({
 }
 
 const moveItemToFolder = async (folder: string) => {
-  await ipcRenderer.invoke('moveImage', currentImage(), props.currentFolder, folder)
+  await ipcRenderer.invoke('moveImage', currentImage.value, props.currentFolder, folder)
   await props.refreshFiles()
 }
 
 const moveItemToFolderWithIndex = async (index: number) => {
   const folder = Object.keys(props.folders)[index]
-  await ipcRenderer.invoke('moveImage', currentImage(), props.currentFolder, folder)
+  await ipcRenderer.invoke('moveImage', currentImage.value, props.currentFolder, folder)
   await props.refreshFiles()
 }
 
@@ -592,12 +592,12 @@ const handleTextAreaType = () => {
   }
 
   timer.value = setTimeout(async () => {
-    await ipcRenderer.invoke('updateImageDescription', props.currentFolder, currentImage(), description.value)
+    await ipcRenderer.invoke('updateImageDescription', props.currentFolder, currentImage.value, description.value)
   }, 200)
 }
 
 const handleDateTimeChange = async (newDate: string) => {
-  await ipcRenderer.invoke('updateImageDate', props.currentFolder, currentImage(), newDate)
+  await ipcRenderer.invoke('updateImageDate', props.currentFolder, currentImage.value, newDate)
 }
 
 window.addEventListener('resize', () => {
@@ -830,7 +830,11 @@ const handleFaceDelete = async (id: string) => {
       tabindex="1"
     ></canvas>
     <template v-if="viewMode === 'edit-mode' && isImageDrawn">
-      <div class="bg-black h-[100vh] p-4 flex flex-col gap-8 overflow-y-auto" :style="{ width: sideBarWidth + 'px' }">
+      <div
+        class="bg-black h-[100vh] p-4 flex flex-col gap-6 overflow-y-auto text-white"
+        :style="{ width: sideBarWidth + 'px' }"
+      >
+        <h3>{{ currentImage }}</h3>
         <div class="flex flex-col">
           <label class="bg-white text-black w-fit px-2 rounded-t-md">Description</label>
           <textarea
@@ -843,7 +847,7 @@ const handleFaceDelete = async (id: string) => {
         </div>
 
         <div class="flex flex-col">
-          <label class="bg-white w-fit px-2 rounded-t-md border-none">Capture Date</label>
+          <label class="bg-white w-fit px-2 rounded-t-md border-none text-black">Capture Date</label>
           <div class="w-full flex">
             <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" class="flex-1" />
             <div class="bg-white rounded-r-lg border-none p-2 h-10">
@@ -866,7 +870,7 @@ const handleFaceDelete = async (id: string) => {
         <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
 
         <div class="grid grid-cols-2 gap-3 w-full">
-          <div v-for="face in imageFaces" class="text-white flex flex-col items-center w-full relative">
+          <div v-for="face in imageFaces" class="flex flex-col items-center w-full relative">
             <div :id="face.id">
               <input
                 class="bg-black text-white text-center w-full text-ellipsis"
