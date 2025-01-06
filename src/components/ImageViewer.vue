@@ -8,6 +8,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import Human, { Config } from '@vladmandic/human'
 import { v4 as randomUUID } from 'uuid'
 import deepEqual from 'deep-equal'
+import Spinner from './Spinner.vue'
 
 const { ipcRenderer } = window.require('electron')
 
@@ -70,6 +71,7 @@ const currentImageID = ref<string | null>(null)
 const faceSquareStart = ref<{ x: number; y: number } | null>(null)
 const isAskingForDeletionConfirmation = ref<boolean>(false)
 const isImageDrawn = ref<boolean>(false)
+const isDetectingFaces = ref<boolean>(false)
 const mouseRef = ref<{
   x: number
   y: number
@@ -88,7 +90,6 @@ const mouseRef = ref<{
 const dateGuessBasedOnFileName = ref<string | null>(null)
 
 const selectImage = async (fileIndex: number) => {
-  imageFaces.value = []
   if (fileIndex < 0) return
   let index = fileIndex
   imageAngle.value = randomImageAngle()
@@ -164,6 +165,7 @@ const selectImage = async (fileIndex: number) => {
 const getFaces = async () => {
   if (!imageRef.value || !currentImageID.value) return
   imageFaces.value = []
+  isDetectingFaces.value = true
   const imageID = currentImageID.value
 
   const detectionResult = await human.detect(imageRef.value)
@@ -208,6 +210,7 @@ const getFaces = async () => {
   await setImageMetadataFaces()
 
   drawImage({ pos: posRef.value, scale: zoomRef.value })
+  isDetectingFaces.value = false
 }
 
 const getFaceDataUrl = ({ x, y, width, height }: Bounds) => {
@@ -822,7 +825,9 @@ const handleFaceDelete = async (id: string) => {
           </div>
         </div>
 
-        <button @click="getFaces" class="bg-white text-black p-2 rounded-md">Detect Faces</button>
+        <button v-if="imageFaces.length === 0" @click="getFaces" class="bg-white text-black p-2 rounded-md">
+          Detect Faces <Spinner v-if="isDetectingFaces" class="w-6 ml-2" />
+        </button>
 
         <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
 
