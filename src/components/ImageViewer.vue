@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { split } from 'canvas-hypertxt'
 import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
@@ -88,6 +88,19 @@ const mouseRef = ref<{
   rightButton: false,
 })
 const dateGuessBasedOnFileName = ref<string | null>(null)
+const autoCompleteFaces = ref<string[]>([])
+const faceIdBeingTyped = ref<string | null>(null)
+
+const allNames = computed(() => {
+  const withDuplicates = Object.values(props.globalFaces)
+    .map((faces) => faces.map((face) => face.name))
+    .flat()
+  const namesAndCounts: { [key: string]: number } = {}
+  withDuplicates.forEach((name) => {
+    namesAndCounts[name] = (namesAndCounts[name] ?? 0) + 1
+  })
+  return Object.keys(namesAndCounts).sort((a, b) => namesAndCounts[b] - namesAndCounts[a])
+})
 
 const selectImage = async (fileIndex: number) => {
   if (fileIndex < 0) return
@@ -164,8 +177,8 @@ const selectImage = async (fileIndex: number) => {
 
 const getFaces = async () => {
   if (!imageRef.value || !currentImageID.value) return
-  imageFaces.value = []
   isDetectingFaces.value = true
+  imageFaces.value = []
   const imageID = currentImageID.value
 
   const detectionResult = await human.detect(imageRef.value)
@@ -756,6 +769,27 @@ const handleFaceNameChange = async (id: string, newName: string) => {
   await setImageMetadataFaces()
 }
 
+const closeAutoComplete = () => {
+  faceIdBeingTyped.value = null
+  autoCompleteFaces.value = []
+}
+
+const closeAutoCompleteIfChildNotFocused = (id: string) => {
+  const parentElement = document.getElementById(id)
+  if (!parentElement || !parentElement.matches(':focus-within')) {
+    closeAutoComplete()
+  }
+}
+
+const handleFaceNameType = (id: string, newName: string) => {
+  const newNameLowerCase = newName.toLowerCase()
+  autoCompleteFaces.value = allNames.value.filter((name) => {
+    const lowerCaseName = name.toLowerCase()
+    return newNameLowerCase !== lowerCaseName && lowerCaseName.includes(newNameLowerCase)
+  })
+  faceIdBeingTyped.value = id
+}
+
 const handleFaceDelete = async (id: string) => {
   if (!currentImageID.value) return
 
@@ -770,7 +804,7 @@ const handleFaceDelete = async (id: string) => {
 
     drawImage({ pos: posRef.value, scale: zoomRef.value })
 
-    const idToFocus = nextFace?.id ?? 'canvas'
+    const idToFocus = nextFace?.id ? `input-${nextFace?.id}` : 'canvas'
     const element = document.getElementById(idToFocus)
 
     if (element) {
@@ -832,14 +866,33 @@ const handleFaceDelete = async (id: string) => {
         <canvas ref="faceCanvasRef" class="hidden" width="50" height="50"></canvas>
 
         <div class="grid grid-cols-2 gap-3 w-full">
-          <div v-for="face in imageFaces" class="text-white flex flex-col items-center w-full">
-            <input
-              class="bg-black text-white text-center w-full"
-              :id="face.id"
-              :value="face.name"
-              placeholder="?"
-              @blur="(event: any) => handleFaceNameChange(face.id, event.target.value)"
-            />
+          <div v-for="face in imageFaces" class="text-white flex flex-col items-center w-full relative">
+            <div :id="face.id">
+              <input
+                class="bg-black text-white text-center w-full text-ellipsis"
+                :value="face.name"
+                :id="'input-' + face.id"
+                placeholder="?"
+                @input="(event: any) => {face.name = event.target.value; handleFaceNameType(face.id, event.target.value)}"
+                @blur="(event: any) => {closeAutoCompleteIfChildNotFocused(face.id); handleFaceNameChange(face.id, event.target.value)}"
+                @keydown="(event: any) => {if (event.key === 'Enter') {event.target.blur()}}"
+              />
+              <div v-if="faceIdBeingTyped === face.id" class="flex flex-col w-full absolute z-10">
+                <button
+                  v-for="name in autoCompleteFaces"
+                  @click="
+                    () => {
+                      closeAutoComplete()
+                      handleFaceNameChange(face.id, name)
+                    }
+                  "
+                  class="bg-white text-black w-full border-solid border-gray-500 border-b-[1px]"
+                >
+                  {{ name }}
+                </button>
+              </div>
+            </div>
+
             <div class="relative">
               <img :src="face.dataUrl" class="rounded-full w-16" />
               <button
