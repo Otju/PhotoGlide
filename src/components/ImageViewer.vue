@@ -486,11 +486,21 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 }
 
 const getSquareFromMouse = () => {
-  if (!faceSquareStart.value) return { x: 0, y: 0, width: 0, height: 0 }
-  const x = faceSquareStart.value.x
-  const y = faceSquareStart.value.y
-  const width = Math.abs(mouseRef.value.x - x) * (mouseRef.value.x < x ? -1 : 1)
-  const height = Math.abs(width) * (mouseRef.value.y < y ? -1 : 1)
+  const ctx = ctxRef.value
+  if (!faceSquareStart.value || !ctx) return { x: 0, y: 0, width: 0, height: 0 }
+  let x = faceSquareStart.value.x
+  let y = faceSquareStart.value.y
+  let width = Math.abs(mouseRef.value.x - x) * (mouseRef.value.x < x ? -1 : 1)
+  let height = Math.abs(width) * (mouseRef.value.y < y ? -1 : 1)
+
+  const transform = ctx.getTransform()
+  const inverse = transform.invertSelf()
+
+  x = x * inverse.a + inverse.e
+  y = y * inverse.d + inverse.f
+  width = width * inverse.a
+  height = height * inverse.d
+
   return { x, y, width, height }
 }
 
