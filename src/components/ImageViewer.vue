@@ -46,8 +46,6 @@ const props = defineProps<{
   setGlobalFacesForImage: (imageID: string, faces: GlobalFace[]) => Promise<void>
 }>()
 
-const sideBarWidth = 280
-
 const defaultCaptureDate = '    :  :     :  :  '
 
 const files = ref<string[]>([])
@@ -106,6 +104,8 @@ const currentImage = computed(() => {
   return files.value[imageIndex.value]
 })
 
+const sideBarWidth = computed(() => (viewMode.value === 'edit-mode' ? 280 : 0))
+
 const selectImage = async (fileIndex: number) => {
   if (fileIndex < 0) return
   let index = fileIndex
@@ -119,7 +119,7 @@ const selectImage = async (fileIndex: number) => {
     const ctx = ctxRef.value
     if (!canvas || !ctx) return
     canvas.height = window.innerHeight
-    canvas.width = window.innerWidth - sideBarWidth
+    canvas.width = window.innerWidth - sideBarWidth.value
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     // Draw text "No image"
     ctx.font = '30px Arial'
@@ -333,7 +333,7 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   if (!ctx || !canvas || !imageRef.value || !isImage.value) return
   const image = imageRef.value
   canvas.height = window.innerHeight
-  canvas.width = window.innerWidth - sideBarWidth
+  canvas.width = window.innerWidth - sideBarWidth.value
 
   if (canvas.height < 200 || canvas.width < 200) {
     return
@@ -348,7 +348,6 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5])
 
-  const scaleRatio = 0.6
   const x = canvas.width / 2
   const y = canvas.height / 2
   ctx.fillStyle = 'white'
@@ -393,12 +392,18 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.strokeRect(scaled.x, scaled.y, scaled.width, scaled.height)
     })
   } else {
+    let scaleRatio = 0.55
+    let translateRatio = 0.3
+    if (image.height > image.width) {
+      scaleRatio = 0.7
+      translateRatio = 0.1
+    }
     ctx.save()
     ctx.translate(x, y)
     ctx.rotate(imageAngle.value)
     ctx.scale(scaleRatio, scaleRatio)
     ctx.translate(-x, -y)
-    ctx.translate(0, -renderedHeight * scaleRatio * 0.25)
+    ctx.translate(0, -renderedHeight * scaleRatio * translateRatio)
     ctx.fillRect(
       -borderSize + xOffset,
       -borderSize + yOffset,
@@ -929,20 +934,6 @@ const handleFaceDelete = async (id: string) => {
       >
         <ArrowTurnUpLeftIcon class="size-8" />
       </button>
-      <button
-        @click="previousImage"
-        class="absolute abs-center-y left-4 text-3xl abs-button"
-        :style="{ marginRight: sideBarWidth + 'px' }"
-      >
-        <
-      </button>
-      <button
-        @click="nextImage"
-        class="absolute abs-center-y right-4 text-3xl abs-button"
-        :style="{ marginRight: sideBarWidth + 'px' }"
-      >
-        >
-      </button>
 
       <div
         class="flex flex-wrap justify-center gap-4 absolute bottom-4 w-full"
@@ -953,6 +944,20 @@ const handleFaceDelete = async (id: string) => {
         </button>
       </div>
     </template>
+    <button
+      @click="previousImage"
+      class="absolute abs-center-y left-4 text-3xl abs-button"
+      :style="{ marginRight: sideBarWidth + 'px' }"
+    >
+      <
+    </button>
+    <button
+      @click="nextImage"
+      class="absolute abs-center-y right-4 text-3xl abs-button"
+      :style="{ marginRight: sideBarWidth + 'px' }"
+    >
+      >
+    </button>
   </div>
   <img src="../assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
 </template>
