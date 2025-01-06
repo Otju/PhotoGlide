@@ -69,6 +69,7 @@ const imageFaces = ref<GlobalFace[]>([])
 const currentImageID = ref<string | null>(null)
 const faceSquareStart = ref<{ x: number; y: number } | null>(null)
 const isAskingForDeletionConfirmation = ref<boolean>(false)
+const isImageDrawn = ref<boolean>(false)
 const mouseRef = ref<{
   x: number
   y: number
@@ -299,7 +300,7 @@ onMounted(async () => {
 
   canvasRef.value?.focus()
 
-  await human.load(humanConfig)
+  human.load(humanConfig)
 })
 
 watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
@@ -464,6 +465,8 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
       ctx.drawImage(tapeImage, 0, 0)
     }
   }
+
+  isImageDrawn.value = true
 }
 
 const getSquareFromMouse = () => {
@@ -789,8 +792,8 @@ const handleFaceDelete = async (id: string) => {
       @mousemove="handleMouse"
       tabindex="1"
     ></canvas>
-    <template v-if="viewMode === 'edit-mode'">
-      <div class="bg-black h-[100vh] p-4 flex flex-col gap-8 overflow-y-scroll" :style="{ width: sideBarWidth + 'px' }">
+    <template v-if="viewMode === 'edit-mode' && isImageDrawn">
+      <div class="bg-black h-[100vh] p-4 flex flex-col gap-8 overflow-y-auto" :style="{ width: sideBarWidth + 'px' }">
         <div class="flex flex-col">
           <label class="bg-white text-black w-fit px-2 rounded-t-md">Description</label>
           <textarea
