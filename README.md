@@ -1,17 +1,28 @@
-## Photo Organizer
+## Photo organizer and captioner
+
+![image](https://github.com/user-attachments/assets/5fb0f5c4-9831-4f6d-a061-42115324ac51)
+![image](https://github.com/user-attachments/assets/8296e447-b0cd-4bee-bfd5-13a56dbcea20)
 
 ### Features
+- Set description and date of photograph
+- Find people in photographs using a face-detection algorithm, or add them in manually
+- Quickly and easily sort photos into folders using shortcuts
+- View images in a cozy format with easy controls for zooming and panning
 
-#### New Images
+### Development
+Requires Node (v20.18.0) and face detection required graphics card that supports WebGL
 
-- Look trough new photos
-- For each one decide to either to discard or keep
-- Also choose what album to put picture in, if any? (just have default album?)
-- Automatically also does same for equivalt RAW photo
+Install dependencies:
+```
+npm install
+```
 
-#### Albums
+Run in local development mode (hot reload UI):
+```
+npm run dev
+```
 
-- Possible to put date + description for photos
-- Maybe what people they have or categories?
-- Cool UI to look at them with descriptions
-- Save albums, descriptions, etc. in e.g. JSON file, also back it up
+Build to single .exe file & installer:
+```
+npm run build
+```
