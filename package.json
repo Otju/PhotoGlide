@@ -1,12 +1,12 @@
 {
-  "name": "photo-captioner",
+  "name": "photoglide",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "author": {
     "name": "Otju"
   },
-  "description": "A photo captioning app",
+  "description": "A photo organizer and viewer",
   "scripts": {
     "build": "vue-tsc && vite build && electron-forge make",
     "dev": "cross-env NODE_ENV=development concurrently --kill-others \"vite\" \"electron main.js\"",
