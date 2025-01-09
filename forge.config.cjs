@@ -17,7 +17,7 @@ module.exports = {
       name: '@rabbitholesyndrome/electron-forge-maker-portable',
       config: {
         portable: {
-          artifactName: 'photo-captioner.exe',
+          artifactName: 'PhotoGlide.exe',
         },
         icon: './icons/icon',
       },
