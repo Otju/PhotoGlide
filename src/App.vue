@@ -99,6 +99,7 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
       :closeAlbum="closeAlbum"
       :globalFaces="globalFaces"
       :setGlobalFacesForImage="setGlobalFacesForImage"
+      :sortedFolderNames="sortedFolderNames"
     />
   </main>
 </template>

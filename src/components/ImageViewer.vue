@@ -3,7 +3,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { split } from 'canvas-hypertxt'
 import { randomImageAngle, splitAt } from '../utils'
 import DateTimeInput from './DateTimeInput.vue'
-import { ArrowTurnUpLeftIcon, DocumentMagnifyingGlassIcon, TrashIcon } from '@heroicons/vue/24/solid'
+import {
+  ArrowTurnUpLeftIcon,
+  DocumentMagnifyingGlassIcon,
+  TrashIcon,
+  FolderIcon,
+  PhotoIcon,
+} from '@heroicons/vue/24/solid'
 import dayjs, { Dayjs } from 'dayjs'
 import Human, { Config } from '@vladmandic/human'
 import { v4 as randomUUID } from 'uuid'
@@ -44,6 +50,7 @@ const props = defineProps<{
   refreshFiles: () => Promise<void>
   closeAlbum: () => void
   setGlobalFacesForImage: (imageID: string, faces: GlobalFace[]) => Promise<void>
+  sortedFolderNames: string[]
 }>()
 
 const defaultCaptureDate = '    :  :     :  :  '
@@ -582,7 +589,7 @@ const moveItemToFolder = async (folder: string) => {
 }
 
 const moveItemToFolderWithIndex = async (index: number) => {
-  const folder = Object.keys(props.folders)[index]
+  const folder = props.sortedFolderNames[index]
   await ipcRenderer.invoke('moveImage', currentImage.value, props.currentFolder, folder)
   await props.refreshFiles()
 }
@@ -592,11 +599,7 @@ const handleKeyPress = (event: KeyboardEvent) => {
     nextImage()
   } else if (event.key === 'ArrowLeft') {
     previousImage()
-  } else if (
-    parseInt(event.key) &&
-    parseInt(event.key) > 0 &&
-    parseInt(event.key) <= Object.keys(props.folders).length
-  ) {
+  } else if (parseInt(event.key) && parseInt(event.key) > 0 && parseInt(event.key) <= props.sortedFolderNames.length) {
     moveItemToFolderWithIndex(parseInt(event.key) - 1)
   }
 }
@@ -849,7 +852,14 @@ const handleFaceDelete = async (id: string) => {
         class="bg-black h-[100vh] p-4 flex flex-col gap-6 overflow-y-auto text-white"
         :style="{ width: sideBarWidth + 'px' }"
       >
-        <h3>{{ currentImage }}</h3>
+        <h2 class="text-lg flex items-center gap-2 -ml-0.5">
+          <FolderIcon class="size-5" />
+          {{ currentFolder }}
+        </h2>
+        <h3 class="flex items-center gap-2">
+          <PhotoIcon class="size-4" />
+          {{ currentImage }}
+        </h3>
         <div class="flex flex-col">
           <label class="bg-white text-black w-fit px-2 rounded-t-md">Description</label>
           <textarea
@@ -931,7 +941,13 @@ const handleFaceDelete = async (id: string) => {
         class="flex flex-wrap justify-center gap-4 absolute bottom-4 w-full"
         :style="{ paddingRight: sideBarWidth + 'px' }"
       >
-        <button v-for="(folder, i) in Object.keys(folders)" @click="() => moveItemToFolder(folder)" class="abs-button">
+        <button
+          v-for="(folder, i) in sortedFolderNames"
+          @click="() => moveItemToFolder(folder)"
+          class="abs-button border-white"
+          :disabled="currentFolder === folder"
+          :class="{ 'border-2': currentFolder === folder }"
+        >
           {{ i + 1 }}. {{ folder }}
         </button>
       </div>
