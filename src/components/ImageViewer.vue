@@ -184,6 +184,12 @@ const selectImage = async (fileIndex: number) => {
   description.value = imageDescription ?? ''
   captureDate.value = imageDate ?? defaultCaptureDate
   currentImageID.value = imageID ?? null
+
+  if (imageRef.value) {
+    imageRef.value.onload = () => {
+      drawImage({ pos: posRef.value, scale: zoomRef.value })
+    }
+  }
 }
 
 const getFaces = async () => {
@@ -586,12 +592,12 @@ const scaleCoordinatesToImage = ({
 const moveItemToFolder = async (folder: string) => {
   await ipcRenderer.invoke('moveImage', currentImage.value, props.currentFolder, folder)
   await props.refreshFiles()
+  await selectImage(imageIndex.value)
 }
 
 const moveItemToFolderWithIndex = async (index: number) => {
   const folder = props.sortedFolderNames[index]
-  await ipcRenderer.invoke('moveImage', currentImage.value, props.currentFolder, folder)
-  await props.refreshFiles()
+  moveItemToFolder(folder)
 }
 
 const handleKeyPress = (event: KeyboardEvent) => {
