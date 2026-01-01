@@ -88,22 +88,25 @@ const handleDelete = async () => {
         <XMarkIcon class="text-red-600 size-7 z-100" @click.prevent.stop="handleDelete" />
       </button>
     </a>
-    <h2
-      v-if="!showRename"
-      class="text-xl text-black font-semibold w-full h-16"
-      @click="showRenameInput"
-      @keydown.enter="showRenameInput"
-      tabindex="0"
-    >
-      {{ props.folderName }}
-    </h2>
-    <textarea
-      v-if="showRename"
-      class="text-xl text-black font-semibold bg-transparent w-full text-center h-16"
-      v-model="newFolderName"
-      ref="inputRef"
-      @blur="handleRename"
-      @keydown.enter="blurInput"
-    />
+    <div>
+      <h2
+        v-if="!showRename"
+        class="text-xl text-black font-semibold w-full"
+        @click="showRenameInput"
+        @keydown.enter="showRenameInput"
+        tabindex="0"
+      >
+        {{ props.folderName }}
+        <p class="text-sm text-gray-500 font-normal ml-1">({{ props.fileCount }})</p>
+      </h2>
+      <textarea
+        v-if="showRename"
+        class="text-xl text-black font-semibold bg-transparent w-full text-center"
+        v-model="newFolderName"
+        ref="inputRef"
+        @blur="handleRename"
+        @keydown.enter="blurInput"
+      />
+    </div>
   </div>
 </template>
