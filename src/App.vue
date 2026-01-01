@@ -27,6 +27,10 @@ onMounted(async () => {
 
   const faces: { [key: string]: GlobalFace[] } = await ipcRenderer.invoke('getFaces')
   globalFaces.value = faces
+
+  ipcRenderer.on('refresh-files', async () => {
+    await refreshFiles()
+  })
 })
 
 const createNewAlbum = async () => {

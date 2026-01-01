@@ -8,6 +8,7 @@ import { v4 as randomUUID } from 'uuid'
 const store = new Store()
 
 let defaultFolder = store.get('defaultFolder')
+let win = null
 
 const imageFileEndings = ['.png', '.jpg', '.jpeg']
 
@@ -44,6 +45,7 @@ const moveFile = (filename, startFolder, endFolder) => {
 
 const getFileNames = () => {
   const fileNames = {}
+
   getFolders().forEach((folder) => {
     const path = `${defaultFolder}\\${folder}`
 
@@ -57,6 +59,7 @@ const getFileNames = () => {
       }
     })
   })
+
   return fileNames
 }
 
@@ -133,8 +136,14 @@ const updateImageId = async (folderName, imageName, newId) => {
   await updateImageMetaData(folderName, imageName, { ImageUniqueID: newId })
 }
 
+const refreshFiles = () => {
+  if (win && win.webContents) {
+    win.webContents.send('refresh-files')
+  }
+}
+
 const createWindow = async () => {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1000,
     height: 800,
     webPreferences: {
@@ -196,6 +205,7 @@ const setDefaultFolder = async () => {
   if (result.filePaths[0]) {
     defaultFolder = result.filePaths[0]
     store.set('defaultFolder', defaultFolder)
+    refreshFiles()
   }
 }
 
