@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import ImageViewer from './components/ImageViewer.vue'
 import Album from './components/Album.vue'
 import { FolderPlusIcon } from '@heroicons/vue/24/solid'
@@ -10,6 +10,10 @@ const currentFolder = ref<string>('')
 const thumbnails = ref<{ [key: string]: string }>({})
 const albumHasRenameInputOpen = ref<{ [key: string]: boolean }>({})
 const globalFaces = ref<{ [key: string]: GlobalFace[] }>({})
+
+const sortedFolderNames = computed(() => {
+  return Object.keys(folders.value).sort((a, b) => a.localeCompare(b))
+})
 
 onMounted(async () => {
   await refreshFiles()
@@ -70,14 +74,14 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
 <template>
   <main class="relative parchment-background min-h-[100vh] w-[100vw]">
     <div v-if="!currentFolder" class="flex flex-wrap gap-x-12 gap-y-8 py-8 px-24">
-      <template v-for="(files, folderName) in folders" :key="folderName">
+      <template v-for="folderName in sortedFolderNames" :key="folderName">
         <Album
           v-model="albumHasRenameInputOpen[folderName]"
           :folderName="folderName.toString()"
           :thumbnail="thumbnails[folderName]"
           :refreshFiles="refreshFiles"
           :openAlbum="openAlbum"
-          :fileCount="files.length"
+          :fileCount="folders[folderName].length"
         />
       </template>
       <div class="flex flex-col items-center text-center justify-center w-40">
