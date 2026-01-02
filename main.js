@@ -209,7 +209,6 @@ const setDefaultFolder = async () => {
 app.whenReady().then(async () => {
   protocol.registerFileProtocol('photo', (request, callback) => {
     const url = request.url.replace('photo:///', '')
-    console.log('Loading image from path:', decodeURIComponent(url))
     callback({ path: decodeURIComponent(url) })
   })
 

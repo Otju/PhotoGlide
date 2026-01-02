@@ -96,7 +96,7 @@ const dateGuessBasedOnFileName = ref<string | null>(null)
 const autoCompleteFaces = ref<string[]>([])
 const faceIdBeingTyped = ref<string | null>(null)
 const currentLoadId = ref<string | null>(null)
-const imageLoadTimeout = ref<NodeJS.Timeout | null>(null)
+const imageIsLoading = ref<boolean>(false)
 
 const allNames = computed(() => {
   const withDuplicates = Object.values(props.globalFaces)
@@ -120,6 +120,7 @@ const selectImage = async (fileIndex: number) => {
   let index = fileIndex
   const loadId = randomUUID()
   currentLoadId.value = loadId
+  imageIsLoading.value = true
 
   imageAngle.value = randomImageAngle()
   if (!files.value[index]) {
@@ -160,6 +161,9 @@ const selectImage = async (fileIndex: number) => {
       if (currentLoadId.value !== loadId) return
 
       drawImage({ pos: posRef.value, scale: zoomRef.value })
+      imageIsLoading.value = false
+      zoomRef.value = 1
+      posRef.value = { x: 0, y: 0 }
       await getMetadata()
     }
   }
@@ -288,15 +292,7 @@ watch([() => props.currentFolder, () => props.folders], async ([folder], _) => {
 })
 
 watch(imageIndex, async (index, _) => {
-  if (imageLoadTimeout.value) {
-    clearTimeout(imageLoadTimeout.value)
-  }
-
-  imageLoadTimeout.value = setTimeout(async () => {
-    await selectImage(index)
-    zoomRef.value = 1
-    posRef.value = { x: 0, y: 0 }
-  }, 50)
+  await selectImage(index)
 })
 
 watch(
@@ -307,6 +303,10 @@ watch(
 )
 
 const nextImage = () => {
+  if (imageIsLoading.value) {
+    return
+  }
+
   if (imageIndex.value >= files.value.length - 1) {
     imageIndex.value = 0
   } else {
@@ -316,6 +316,10 @@ const nextImage = () => {
 }
 
 const previousImage = () => {
+  if (imageIsLoading.value) {
+    return
+  }
+
   if (imageIndex.value <= 0) {
     imageIndex.value = files.value.length - 1
   } else {
