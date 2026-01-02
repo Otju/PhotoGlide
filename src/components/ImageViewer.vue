@@ -95,7 +95,6 @@ const mouseRef = ref<{
 const dateGuessBasedOnFileName = ref<string | null>(null)
 const autoCompleteFaces = ref<string[]>([])
 const faceIdBeingTyped = ref<string | null>(null)
-const currentLoadId = ref<string | null>(null)
 const imageIsLoading = ref<boolean>(false)
 
 const allNames = computed(() => {
@@ -118,8 +117,6 @@ const sideBarWidth = computed(() => (viewMode.value === 'edit-mode' ? 280 : 0))
 const selectImage = async (fileIndex: number) => {
   if (fileIndex < 0) return
   let index = fileIndex
-  const loadId = randomUUID()
-  currentLoadId.value = loadId
   imageIsLoading.value = true
 
   imageAngle.value = randomImageAngle()
@@ -144,9 +141,6 @@ const selectImage = async (fileIndex: number) => {
 
   const imagePath = await ipcRenderer.invoke('getImagePath', props.currentFolder, files.value[index])
 
-  // Check if this load is still current after the async call
-  if (currentLoadId.value !== loadId) return
-
   if (!imagePath) {
     isImage.value = false
     return
@@ -157,9 +151,6 @@ const selectImage = async (fileIndex: number) => {
 
   if (imageRef.value) {
     imageRef.value.onload = async () => {
-      // Only process if this is still the current load
-      if (currentLoadId.value !== loadId) return
-
       drawImage({ pos: posRef.value, scale: zoomRef.value })
       imageIsLoading.value = false
       zoomRef.value = 1
@@ -888,16 +879,19 @@ const handleFaceDelete = async (id: string) => {
           <FolderIcon class="size-5" />
           {{ currentFolder }}
         </h2>
+
         <h3 class="flex items-center gap-2">
           <PhotoIcon class="size-4" />
           {{ currentImage }}
         </h3>
+
         <div class="flex flex-col">
           <label class="bg-white text-black w-fit px-2 rounded-t-md">Description</label>
           <textarea
             class="w-full bg-white text-black px-4 p-2 rounded-b-md rounded-r-md"
             tabindex="2"
             rows="4"
+            :disabled="imageIsLoading"
             @input="handleTextAreaType"
             v-model="description"
           ></textarea>
@@ -906,7 +900,12 @@ const handleFaceDelete = async (id: string) => {
         <div class="flex flex-col">
           <label class="bg-white w-fit px-2 rounded-t-md border-none text-black">Capture Date</label>
           <div class="w-full flex">
-            <DateTimeInput :onChange="handleDateTimeChange" v-model="captureDate" class="flex-1" />
+            <DateTimeInput
+              :onChange="handleDateTimeChange"
+              v-model="captureDate"
+              class="flex-1"
+              :disabled="imageIsLoading"
+            />
             <div class="bg-white rounded-r-lg border-none p-2 h-10">
               <button
                 v-if="dateGuessBasedOnFileName"

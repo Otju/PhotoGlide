@@ -7,6 +7,11 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  disabled: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
 })
 
 const year = ref<string>('----')
@@ -164,6 +169,7 @@ const handleChange = () => {
       ref="dayInput"
       @focus="$refs.dayInput.select()"
       tabindex="3"
+      :disabled="disabled"
     />
     /
     <input
@@ -175,6 +181,7 @@ const handleChange = () => {
       ref="monthInput"
       @focus="$refs.monthInput.select()"
       tabindex="4"
+      :disabled="disabled"
     />
     /
     <input
@@ -186,6 +193,7 @@ const handleChange = () => {
       ref="yearInput"
       @focus="$refs.yearInput.select()"
       tabindex="5"
+      :disabled="disabled"
     />
 
     <input
@@ -197,6 +205,7 @@ const handleChange = () => {
       ref="hourInput"
       @focus="$refs.hourInput.select()"
       tabindex="6"
+      :disabled="disabled"
     />
     .
     <input
@@ -208,6 +217,7 @@ const handleChange = () => {
       ref="minuteInput"
       @focus="$refs.minuteInput.select()"
       tabindex="7"
+      :disabled="disabled"
     />
     .
     <input
@@ -219,6 +229,7 @@ const handleChange = () => {
       ref="secondInput"
       @focus="$refs.secondInput.select()"
       tabindex="8"
+      :disabled="disabled"
     />
   </div>
 </template>
