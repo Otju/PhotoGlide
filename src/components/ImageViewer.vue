@@ -123,7 +123,9 @@ const selectImage = async (fileIndex: number) => {
   if (!files.value[index]) {
     index = 0
   }
+
   if (!props.currentFolder || !imageRef.value) return
+
   if (!files.value[index]) {
     const canvas = canvasRef.value
     const ctx = ctxRef.value
@@ -151,6 +153,7 @@ const selectImage = async (fileIndex: number) => {
 
   if (imageRef.value) {
     imageRef.value.onload = async () => {
+      imageFaces.value = []
       drawImage({ pos: posRef.value, scale: zoomRef.value })
       imageIsLoading.value = false
       zoomRef.value = 1
@@ -201,6 +204,10 @@ const getMetadata = async () => {
   description.value = imageDescription ?? ''
   captureDate.value = imageDate ?? defaultCaptureDate
   currentImageID.value = imageID ?? null
+
+  if (!imageIsLoading.value) {
+    drawImage({ pos: posRef.value, scale: zoomRef.value })
+  }
 }
 
 const getFaces = async () => {
