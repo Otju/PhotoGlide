@@ -167,7 +167,7 @@ const handleChange = () => {
       class="p-0 w-6 rounded-none text-center"
       @keydown.delete="day = '--'"
       ref="dayInput"
-      @focus="$refs.dayInput.select()"
+      @focus="dayInput?.select()"
       tabindex="3"
       :disabled="disabled"
     />
@@ -179,7 +179,7 @@ const handleChange = () => {
       class="p-0 w-6 rounded-none text-center"
       @keydown.delete="month = '--'"
       ref="monthInput"
-      @focus="$refs.monthInput.select()"
+      @focus="monthInput?.select()"
       tabindex="4"
       :disabled="disabled"
     />
@@ -191,7 +191,7 @@ const handleChange = () => {
       class="p-0 w-10 rounded-none text-center"
       @keydown.delete="year = '----'"
       ref="yearInput"
-      @focus="$refs.yearInput.select()"
+      @focus="yearInput?.select()"
       tabindex="5"
       :disabled="disabled"
     />
@@ -203,7 +203,7 @@ const handleChange = () => {
       class="p-0 w-6 rounded-none text-center"
       @keydown.delete="hour = '--'"
       ref="hourInput"
-      @focus="$refs.hourInput.select()"
+      @focus="hourInput?.select()"
       tabindex="6"
       :disabled="disabled"
     />
@@ -215,7 +215,7 @@ const handleChange = () => {
       class="p-0 w-6 rounded-none text-center"
       @keydown.delete="minute = '--'"
       ref="minuteInput"
-      @focus="$refs.minuteInput.select()"
+      @focus="minuteInput?.select()"
       tabindex="7"
       :disabled="disabled"
     />
@@ -227,7 +227,7 @@ const handleChange = () => {
       class="p-0 w-6 rounded-none text-center"
       @keydown.delete="second = '--'"
       ref="secondInput"
-      @focus="$refs.secondInput.select()"
+      @focus="secondInput?.select()"
       tabindex="8"
       :disabled="disabled"
     />
