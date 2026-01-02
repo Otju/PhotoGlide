@@ -95,6 +95,8 @@ const mouseRef = ref<{
 const dateGuessBasedOnFileName = ref<string | null>(null)
 const autoCompleteFaces = ref<string[]>([])
 const faceIdBeingTyped = ref<string | null>(null)
+const currentLoadId = ref<string | null>(null)
+const imageLoadTimeout = ref<NodeJS.Timeout | null>(null)
 
 const allNames = computed(() => {
   const withDuplicates = Object.values(props.globalFaces)
@@ -116,6 +118,9 @@ const sideBarWidth = computed(() => (viewMode.value === 'edit-mode' ? 280 : 0))
 const selectImage = async (fileIndex: number) => {
   if (fileIndex < 0) return
   let index = fileIndex
+  const loadId = randomUUID()
+  currentLoadId.value = loadId
+
   imageAngle.value = randomImageAngle()
   if (!files.value[index]) {
     index = 0
@@ -135,21 +140,38 @@ const selectImage = async (fileIndex: number) => {
     isImage.value = false
     return
   }
-  const imageData = await ipcRenderer.invoke('getImage', props.currentFolder, files.value[index])
 
-  if (!imageData) {
+  const imagePath = await ipcRenderer.invoke('getImagePath', props.currentFolder, files.value[index])
+
+  // Check if this load is still current after the async call
+  if (currentLoadId.value !== loadId) return
+
+  if (!imagePath) {
     isImage.value = false
     return
   }
-  imageRef.value.src = `data:image/jpg;base64,${imageData}`
+
+  imageRef.value.src = `photo:///${imagePath.replace(/\\/g, '/')}`
   isImage.value = true
 
+  if (imageRef.value) {
+    imageRef.value.onload = async () => {
+      // Only process if this is still the current load
+      if (currentLoadId.value !== loadId) return
+
+      drawImage({ pos: posRef.value, scale: zoomRef.value })
+      await getMetadata()
+    }
+  }
+}
+
+const getMetadata = async () => {
   const {
     imageDescription,
     imageDate,
     imageID,
     imageFaces: newLocalFaces,
-  } = await ipcRenderer.invoke('getImageMetadata', props.currentFolder, files.value[index])
+  } = await ipcRenderer.invoke('getImageMetadata', props.currentFolder, files.value[imageIndex.value])
 
   const localFaces = (newLocalFaces ?? []) as LocalFace[]
 
@@ -184,12 +206,6 @@ const selectImage = async (fileIndex: number) => {
   description.value = imageDescription ?? ''
   captureDate.value = imageDate ?? defaultCaptureDate
   currentImageID.value = imageID ?? null
-
-  if (imageRef.value) {
-    imageRef.value.onload = () => {
-      drawImage({ pos: posRef.value, scale: zoomRef.value })
-    }
-  }
 }
 
 const getFaces = async () => {
@@ -272,9 +288,15 @@ watch([() => props.currentFolder, () => props.folders], async ([folder], _) => {
 })
 
 watch(imageIndex, async (index, _) => {
-  await selectImage(index)
-  zoomRef.value = 1
-  posRef.value = { x: 0, y: 0 }
+  if (imageLoadTimeout.value) {
+    clearTimeout(imageLoadTimeout.value)
+  }
+
+  imageLoadTimeout.value = setTimeout(async () => {
+    await selectImage(index)
+    zoomRef.value = 1
+    posRef.value = { x: 0, y: 0 }
+  }, 50)
 })
 
 watch(

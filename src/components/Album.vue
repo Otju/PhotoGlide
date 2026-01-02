@@ -78,11 +78,7 @@ const handleDelete = async () => {
   <div class="text-white flex flex-col items-center text-center w-40">
     <a class="relative w-32 h-32" href="#" @click="props.openAlbum(props.folderName)">
       <FolderOpenIcon class="w-full absolute" style="clip-path: inset(0px 0px 75px 0px)" />
-      <img
-        v-if="props.thumbnail"
-        :src="`data:image/jpeg;base64, ${props.thumbnail}`"
-        class="absolute w-20 bottom-11 left-6 -rotate-[20deg]"
-      />
+      <img v-if="props.thumbnail" :src="props.thumbnail" class="absolute w-20 bottom-11 left-6 -rotate-[20deg]" />
       <FolderOpenIcon class="w-full absolute" style="clip-path: inset(50px 0px 0 0px)" />
       <button v-if="showRename" class="absolute top-0 -right-2 bg-transparent p-0">
         <XMarkIcon class="text-red-600 size-7 z-100" @click.prevent.stop="handleDelete" />

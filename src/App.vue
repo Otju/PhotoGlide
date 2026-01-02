@@ -25,8 +25,8 @@ onMounted(async () => {
 
   for (const { folderName, file } of firstFiles) {
     if (!file) continue
-    const imageData = await ipcRenderer.invoke('getImage', folderName, file)
-    thumbnails.value[folderName] = imageData
+    const imagePath = await ipcRenderer.invoke('getImagePath', folderName, file)
+    thumbnails.value[folderName] = `photo:///${imagePath.replace(/\\\\/g, '/')}`
   }
 
   const faces: { [key: string]: GlobalFace[] } = await ipcRenderer.invoke('getFaces')

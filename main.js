@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, protocol } from 'electron'
 import fs from 'fs'
 import Store from 'electron-store'
 import { ExifTool, exiftoolPath } from 'exiftool-vendored'
@@ -63,11 +63,8 @@ const getFileNames = () => {
   return fileNames
 }
 
-const getImage = async (folderName, imageName) => {
-  const path = `${defaultFolder}\\${folderName}\\${imageName}`
-  const raw = fs.readFileSync(path)
-  const imageData = raw.toString('base64')
-  return imageData
+const getImagePath = (folderName, imageName) => {
+  return `${defaultFolder}\\${folderName}\\${imageName}`
 }
 
 const getImageMetadata = async (folderName, imageName) => {
@@ -210,6 +207,12 @@ const setDefaultFolder = async () => {
 }
 
 app.whenReady().then(async () => {
+  protocol.registerFileProtocol('photo', (request, callback) => {
+    const url = request.url.replace('photo:///', '')
+    console.log('Loading image from path:', decodeURIComponent(url))
+    callback({ path: decodeURIComponent(url) })
+  })
+
   if (!defaultFolder) {
     await setDefaultFolder()
   }
@@ -234,8 +237,8 @@ app.whenReady().then(async () => {
     return await getImageMetadata(folderName, imageName)
   })
 
-  ipcMain.handle('getImage', async (event, folderName, imageName) => {
-    return await getImage(folderName, imageName)
+  ipcMain.handle('getImagePath', (event, folderName, imageName) => {
+    return getImagePath(folderName, imageName)
   })
 
   ipcMain.handle('updateImageDescription', async (event, folderName, imageName, newDescription) => {
