@@ -2,20 +2,40 @@
 import { onMounted, ref, computed } from 'vue'
 import ImageViewer from './components/ImageViewer.vue'
 import Album from './components/Album.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
 import { FolderPlusIcon } from '@heroicons/vue/24/solid'
 const { ipcRenderer } = window.require('electron')
+
+type Settings = {
+  defaultFolder: string
+  slideshowInterval: number
+  backgroundStyle: 'parchment' | 'black'
+}
 
 const folders = ref<Folders>({})
 const currentFolder = ref<string>('')
 const thumbnails = ref<{ [key: string]: string }>({})
 const albumHasRenameInputOpen = ref<{ [key: string]: boolean }>({})
 const globalFaces = ref<{ [key: string]: GlobalFace[] }>({})
+const showSettingsDialog = ref(false)
+const settings = ref<Settings>({
+  defaultFolder: '',
+  slideshowInterval: 10000,
+  backgroundStyle: 'parchment',
+})
+
+const backgroundClass = computed(() => {
+  return settings.value.backgroundStyle === 'black' ? 'black-background' : 'parchment-background'
+})
 
 const sortedFolderNames = computed(() => {
   return Object.keys(folders.value).sort((a, b) => a.localeCompare(b))
 })
 
 onMounted(async () => {
+  const loadedSettings = await ipcRenderer.invoke('getSettings')
+  settings.value = loadedSettings
+
   await refreshFiles()
 
   const firstFiles = Object.entries(folders.value).map(([folderName, files]) => ({
@@ -35,7 +55,17 @@ onMounted(async () => {
   ipcRenderer.on('refresh-files', async () => {
     await refreshFiles()
   })
+
+  ipcRenderer.on('open-settings', () => {
+    showSettingsDialog.value = true
+  })
 })
+
+const handleSaveSettings = async (newSettings: Settings) => {
+  await ipcRenderer.invoke('saveSettings', newSettings)
+  settings.value = newSettings
+  showSettingsDialog.value = false
+}
 
 const createNewAlbum = async () => {
   const folderNames = Object.keys(folders.value)
@@ -72,7 +102,7 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
 </script>
 
 <template>
-  <main class="relative parchment-background min-h-[100vh] w-[100vw]">
+  <main class="relative min-h-[100vh] w-[100vw]" :class="backgroundClass">
     <div v-if="!currentFolder" class="flex flex-wrap gap-x-12 gap-y-8 py-8 px-24">
       <template v-for="folderName in sortedFolderNames" :key="folderName">
         <Album
@@ -82,13 +112,14 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
           :refreshFiles="refreshFiles"
           :openAlbum="openAlbum"
           :fileCount="folders[folderName].length"
+          :backgroundStyle="settings.backgroundStyle"
         />
       </template>
       <div class="flex flex-col items-center text-center justify-center w-40">
         <button @click="createNewAlbum" class="bg-transparent p-0 w-32 h-32">
           <FolderPlusIcon class="text-white" />
         </button>
-        <h2 class="text-xl text-black font-semibold w-full h-16">New album</h2>
+        <h2 class="text-xl font-semibold w-full h-16" :class="settings.backgroundStyle === 'black' ? 'text-white' : 'text-black'">New album</h2>
       </div>
     </div>
     <ImageViewer
@@ -100,6 +131,12 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
       :globalFaces="globalFaces"
       :setGlobalFacesForImage="setGlobalFacesForImage"
       :sortedFolderNames="sortedFolderNames"
+      :slideshowInterval="settings.slideshowInterval"
+    />
+    <SettingsDialog
+      :visible="showSettingsDialog"
+      @close="showSettingsDialog = false"
+      @save="handleSaveSettings"
     />
   </main>
 </template>

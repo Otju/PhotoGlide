@@ -51,6 +51,7 @@ const props = defineProps<{
   closeAlbum: () => void
   setGlobalFacesForImage: (imageID: string, faces: GlobalFace[]) => Promise<void>
   sortedFolderNames: string[]
+  slideshowInterval: number
 }>()
 
 const defaultCaptureDate = '    :  :     :  :  '
@@ -908,7 +909,7 @@ const resetSlideshowTimers = (showButtons = true) => {
   slideshowIdleTimer.value = setTimeout(() => {
     nextImage(true)
     resetSlideshowTimers(false)
-  }, 10000)
+  }, props.slideshowInterval)
 }
 
 const clearSlideshowTimers = () => {
@@ -925,6 +926,7 @@ const clearSlideshowTimers = () => {
     <canvas
       ref="canvasRef"
       id="canvas"
+      class="outline-none"
       @keydown="handleKeyPress"
       @wheel="handleScroll"
       @mousedown="handleMouse"

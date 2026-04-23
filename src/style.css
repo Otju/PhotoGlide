@@ -32,6 +32,10 @@
   filter: url(#wavy2);
 }
 
+.black-background {
+  background: #000000;
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;

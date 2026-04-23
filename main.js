@@ -8,8 +8,31 @@ import { v4 as randomUUID } from 'uuid'
 const store = new Store()
 
 let defaultFolder = store.get('defaultFolder')
+let slideshowInterval = store.get('slideshowInterval', 10000)
+let backgroundStyle = store.get('backgroundStyle', 'parchment')
 let win = null
 let currentViewMode = 'edit-mode'
+
+const getSettings = () => ({
+  defaultFolder: defaultFolder || '',
+  slideshowInterval,
+  backgroundStyle,
+})
+
+const saveSettings = (settings) => {
+  if (settings.defaultFolder !== undefined) {
+    defaultFolder = settings.defaultFolder
+    store.set('defaultFolder', defaultFolder)
+  }
+  if (settings.slideshowInterval !== undefined) {
+    slideshowInterval = settings.slideshowInterval
+    store.set('slideshowInterval', slideshowInterval)
+  }
+  if (settings.backgroundStyle !== undefined) {
+    backgroundStyle = settings.backgroundStyle
+    store.set('backgroundStyle', backgroundStyle)
+  }
+}
 
 const imageFileEndings = ['.png', '.jpg', '.jpeg']
 
@@ -159,7 +182,14 @@ const createWindow = async () => {
   let menuTemplate = [
     {
       label: 'File',
-      submenu: [{ label: 'Select main folder (folder containing albums)', click: setDefaultFolder }],
+      submenu: [
+        {
+          label: 'Settings',
+          click: () => {
+            win.webContents.send('open-settings')
+          },
+        },
+      ],
     },
     {
       label: 'View',
@@ -282,6 +312,26 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('getViewMode', () => {
     return currentViewMode
+  })
+
+  ipcMain.handle('getSettings', () => {
+    return getSettings()
+  })
+
+  ipcMain.handle('saveSettings', (event, settings) => {
+    saveSettings(settings)
+    refreshFiles()
+  })
+
+  ipcMain.handle('selectFolder', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select a folder for all your albums',
+    })
+    if (result.filePaths[0]) {
+      return result.filePaths[0]
+    }
+    return null
   })
 
   ipcMain.handle('setFacesForImage', async (event, folderName, imageName, { imageWidth, imageHeight, faces }) => {

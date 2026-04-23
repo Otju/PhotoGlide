@@ -10,6 +10,7 @@ const props = defineProps<{
   fileCount: number
   refreshFiles: () => Promise<void>
   openAlbum: (folderName: string) => void
+  backgroundStyle: 'parchment' | 'black'
 }>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -87,7 +88,8 @@ const handleDelete = async () => {
     <div>
       <h2
         v-if="!showRename"
-        class="text-xl text-black font-semibold w-full"
+        class="text-xl font-semibold w-full"
+        :class="props.backgroundStyle === 'black' ? 'text-white' : 'text-black'"
         @click="showRenameInput"
         @keydown.enter="showRenameInput"
         tabindex="0"
@@ -97,7 +99,8 @@ const handleDelete = async () => {
       </h2>
       <textarea
         v-if="showRename"
-        class="text-xl text-black font-semibold bg-transparent w-full text-center"
+        class="text-xl font-semibold bg-transparent w-full text-center"
+        :class="props.backgroundStyle === 'black' ? 'text-white' : 'text-black'"
         v-model="newFolderName"
         ref="inputRef"
         @blur="handleRename"
