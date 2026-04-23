@@ -96,6 +96,9 @@ const dateGuessBasedOnFileName = ref<string | null>(null)
 const autoCompleteFaces = ref<string[]>([])
 const faceIdBeingTyped = ref<string | null>(null)
 const imageIsLoading = ref<boolean>(false)
+const slideshowIdleTimer = ref<NodeJS.Timeout | null>(null)
+const buttonFadeTimer = ref<NodeJS.Timeout | null>(null)
+const showSlideshowButtons = ref<boolean>(true)
 
 const allNames = computed(() => {
   const withDuplicates = Object.values(props.globalFaces)
@@ -300,7 +303,7 @@ watch(
   }
 )
 
-const nextImage = () => {
+const nextImage = (isAutoAdvance = false) => {
   if (imageIsLoading.value) {
     return
   }
@@ -311,6 +314,9 @@ const nextImage = () => {
     imageIndex.value++
   }
   canvasRef.value?.focus()
+  if (!isAutoAdvance) {
+    resetSlideshowTimers()
+  }
 }
 
 const previousImage = () => {
@@ -325,6 +331,7 @@ const previousImage = () => {
   }
 
   canvasRef.value?.focus()
+  resetSlideshowTimers()
 }
 
 onMounted(async () => {
@@ -364,6 +371,15 @@ watch([zoomRef, posRef, viewMode], ([scale, pos]) => {
 
 watch([description], () => {
   calculatedFontSize.value = null
+})
+
+watch(viewMode, (newMode, oldMode) => {
+  if (oldMode === 'slideshow-mode' && newMode !== 'slideshow-mode') {
+    clearSlideshowTimers()
+  }
+  if (newMode === 'slideshow-mode') {
+    resetSlideshowTimers()
+  }
 })
 
 const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: number }) => {
@@ -704,6 +720,10 @@ const handleMouse = (event: MouseEvent) => {
   if (mouse.rightButton) {
     drawImage({ pos: posRef.value, scale: zoomRef.value })
   }
+
+  if (event.type === 'mousemove') {
+    resetSlideshowTimers()
+  }
 }
 
 const scaleAt = (at: { x: number; y: number }, amount: number) => {
@@ -868,6 +888,33 @@ const handleFaceDelete = async (id: string) => {
     isAskingForDeletionConfirmation.value = true
   }
 }
+
+const resetSlideshowTimers = (showButtons = true) => {
+  if (viewMode.value !== 'slideshow-mode') return
+
+  if (showButtons) {
+    showSlideshowButtons.value = true
+
+    if (buttonFadeTimer.value) clearTimeout(buttonFadeTimer.value)
+    buttonFadeTimer.value = setTimeout(() => {
+      showSlideshowButtons.value = false
+    }, 2500)
+  }
+
+  if (slideshowIdleTimer.value) clearTimeout(slideshowIdleTimer.value)
+  slideshowIdleTimer.value = setTimeout(() => {
+    nextImage(true)
+    resetSlideshowTimers(false)
+  }, 10000)
+}
+
+const clearSlideshowTimers = () => {
+  if (slideshowIdleTimer.value) clearTimeout(slideshowIdleTimer.value)
+  if (buttonFadeTimer.value) clearTimeout(buttonFadeTimer.value)
+  slideshowIdleTimer.value = null
+  buttonFadeTimer.value = null
+  showSlideshowButtons.value = true
+}
 </script>
 
 <template>
@@ -1013,27 +1060,31 @@ const handleFaceDelete = async (id: string) => {
       </div>
     </template>
     <template v-if="isImageDrawn">
-      <button
-        @click="props.closeAlbum"
-        class="absolute left-4 top-2 text-3xl abs-button"
-        :style="{ marginRight: sideBarWidth + 'px' }"
-      >
-        <ArrowTurnUpLeftIcon class="size-8" />
-      </button>
-      <button
-        @click="previousImage"
-        class="absolute abs-center-y left-4 text-3xl abs-button"
-        :style="{ marginRight: sideBarWidth + 'px' }"
-      >
-        <
-      </button>
-      <button
-        @click="nextImage"
-        class="absolute abs-center-y right-4 text-3xl abs-button"
-        :style="{ marginRight: sideBarWidth + 'px' }"
-      >
-        >
-      </button>
+      <Transition name="fade">
+        <div v-show="viewMode !== 'slideshow-mode' || showSlideshowButtons">
+          <button
+            @click="props.closeAlbum"
+            class="absolute left-4 top-2 text-3xl abs-button"
+            :style="{ marginRight: sideBarWidth + 'px' }"
+          >
+            <ArrowTurnUpLeftIcon class="size-8" />
+          </button>
+          <button
+            @click="previousImage"
+            class="absolute abs-center-y left-4 text-3xl abs-button"
+            :style="{ marginRight: sideBarWidth + 'px' }"
+          >
+            <
+          </button>
+          <button
+            @click="nextImage"
+            class="absolute abs-center-y right-4 text-3xl abs-button"
+            :style="{ marginRight: sideBarWidth + 'px' }"
+          >
+            >
+          </button>
+        </div>
+      </Transition>
     </template>
   </div>
   <img src="../assets/tape.png" id="tapeImage" alt="tape" class="hidden" />
