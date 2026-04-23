@@ -9,6 +9,7 @@ const store = new Store()
 
 let defaultFolder = store.get('defaultFolder')
 let win = null
+let currentViewMode = 'edit-mode'
 
 const imageFileEndings = ['.png', '.jpg', '.jpeg']
 
@@ -194,6 +195,7 @@ const createWindow = async () => {
   }
 
   const selectMode = (mode) => {
+    currentViewMode = mode
     const item = menu.getMenuItemById(mode)
     item.checked = true
     win.webContents.send('view-mode-change', mode)
@@ -276,6 +278,10 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('getFaces', (event) => {
     return store.get('faces') || {}
+  })
+
+  ipcMain.handle('getViewMode', () => {
+    return currentViewMode
   })
 
   ipcMain.handle('setFacesForImage', async (event, folderName, imageName, { imageWidth, imageHeight, faces }) => {

@@ -350,6 +350,9 @@ onMounted(async () => {
   if (!canvasRef.value) return
   ctxRef.value = canvasRef.value.getContext('2d')
 
+  const initialViewMode = await ipcRenderer.invoke('getViewMode')
+  viewMode.value = initialViewMode
+
   ipcRenderer.on('view-mode-change', (_: any, message: string) => {
     if (message === 'edit-mode') {
       viewMode.value = 'edit-mode'
