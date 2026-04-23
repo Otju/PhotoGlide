@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, globalShortcut } from 'electron'
 import fs from 'fs'
 import Store from 'electron-store'
 import { ExifTool, exiftoolPath } from 'exiftool-vendored'
@@ -12,6 +12,7 @@ let slideshowInterval = store.get('slideshowInterval', 10000)
 let backgroundStyle = store.get('backgroundStyle', 'parchment')
 let win = null
 let currentViewMode = 'edit-mode'
+let isFullScreen = false
 
 const getSettings = () => ({
   defaultFolder: defaultFolder || '',
@@ -175,6 +176,14 @@ const refreshFiles = () => {
   }
 }
 
+const toggleFullScreen = () => {
+  if (!win) return
+  isFullScreen = !isFullScreen
+  win.setFullScreen(isFullScreen)
+  win.setMenuBarVisibility(!isFullScreen)
+  win.webContents.send('fullscreen-change', isFullScreen)
+}
+
 const createWindow = async () => {
   win = new BrowserWindow({
     width: 1000,
@@ -225,6 +234,13 @@ const createWindow = async () => {
           type: 'radio',
           click: () => selectMode('slideshow-mode'),
         },
+        { type: 'separator' },
+        {
+          id: 'fullscreen',
+          label: 'Full Screen',
+          accelerator: 'F11',
+          click: () => toggleFullScreen(),
+        },
       ],
     },
   ]
@@ -242,6 +258,18 @@ const createWindow = async () => {
     item.checked = true
     win.webContents.send('view-mode-change', mode)
   }
+
+  win.on('enter-full-screen', () => {
+    isFullScreen = true
+    win.setMenuBarVisibility(false)
+    win.webContents.send('fullscreen-change', true)
+  })
+
+  win.on('leave-full-screen', () => {
+    isFullScreen = false
+    win.setMenuBarVisibility(true)
+    win.webContents.send('fullscreen-change', false)
+  })
 }
 
 const setDefaultFolder = async () => {
@@ -267,6 +295,10 @@ app.whenReady().then(async () => {
   }
 
   createWindow()
+
+  globalShortcut.register('Alt+Return', () => {
+    toggleFullScreen()
+  })
 
   ipcMain.handle('readFile', async (event, fileName) => {
     try {
@@ -324,6 +356,14 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('getViewMode', () => {
     return currentViewMode
+  })
+
+  ipcMain.handle('getFullScreen', () => {
+    return isFullScreen
+  })
+
+  ipcMain.handle('toggleFullScreen', () => {
+    toggleFullScreen()
   })
 
   ipcMain.handle('getSettings', () => {
@@ -394,6 +434,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  globalShortcut.unregisterAll()
   exiftool.end()
   if (process.platform !== 'darwin') app.quit()
 })
