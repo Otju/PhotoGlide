@@ -1081,8 +1081,9 @@ const clearSlideshowTimers = () => {
           >
             <
           </button>
+
           <button
-            @click="nextImage"
+            @click="() => nextImage()"
             class="absolute abs-center-y right-4 text-3xl abs-button"
             :style="{ marginRight: sideBarWidth + 'px' }"
           >
