@@ -176,6 +176,12 @@ const createWindow = async () => {
           type: 'radio',
           click: () => selectMode('album-mode'),
         },
+        {
+          id: 'slideshow-mode',
+          label: 'Slidehow mode',
+          type: 'radio',
+          click: () => selectMode('slideshow-mode'),
+        },
       ],
     },
   ]

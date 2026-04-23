@@ -68,7 +68,7 @@ const isImage = ref<boolean>(false)
 const timer = ref<NodeJS.Timeout | null>(null)
 const description = ref<string>('')
 const captureDate = ref<string>(defaultCaptureDate) // YYYY:MM:DD HH:mm:ss
-const viewMode = ref<'album-mode' | 'edit-mode'>('edit-mode')
+const viewMode = ref<'album-mode' | 'edit-mode' | 'slideshow-mode'>('edit-mode')
 const calculatedFontSize = ref<number | null>(null)
 const imageAngle = ref<number>(randomImageAngle())
 const imageFaces = ref<GlobalFace[]>([])
@@ -348,6 +348,8 @@ onMounted(async () => {
       viewMode.value = 'edit-mode'
     } else if (message === 'album-mode') {
       viewMode.value = 'album-mode'
+    } else if (message === 'slideshow-mode') {
+      viewMode.value = 'slideshow-mode'
     }
   })
 
@@ -398,9 +400,11 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 
   const borderSize = renderedWidth * 0.04
 
-  if (viewMode.value === 'edit-mode') {
+  if (viewMode.value === 'edit-mode' || viewMode.value === 'slideshow-mode') {
     ctx.drawImage(image, 0, 0, image.width, image.height, xOffset, yOffset, renderedWidth, renderedHeight)
+  }
 
+  if (viewMode.value === 'edit-mode') {
     if (mouseRef.value.rightButton && faceSquareStart.value) {
       ctx.strokeStyle = 'red'
       ctx.lineWidth = 2
@@ -428,7 +432,9 @@ const drawImage = ({ pos, scale }: { pos: { x: number; y: number }; scale: numbe
 
       ctx.strokeRect(scaled.x, scaled.y, scaled.width, scaled.height)
     })
-  } else {
+  }
+
+  if (viewMode.value === 'album-mode') {
     let scaleRatio = 0.55
     let translateRatio = 0.3
     if (image.height > image.width) {
@@ -940,9 +946,25 @@ const handleFaceDelete = async (id: string) => {
                 :value="face.name"
                 :id="'input-' + face.id"
                 placeholder="?"
-                @input="(event: any) => {face.name = event.target.value; handleFaceNameType(face.id, event.target.value)}"
-                @blur="(event: any) => {closeAutoCompleteIfChildNotFocused(face.id); handleFaceNameChange(face.id, event.target.value)}"
-                @keydown="(event: any) => {if (event.key === 'Enter') {event.target.blur()}}"
+                @input="
+                  (event: any) => {
+                    face.name = event.target.value
+                    handleFaceNameType(face.id, event.target.value)
+                  }
+                "
+                @blur="
+                  (event: any) => {
+                    closeAutoCompleteIfChildNotFocused(face.id)
+                    handleFaceNameChange(face.id, event.target.value)
+                  }
+                "
+                @keydown="
+                  (event: any) => {
+                    if (event.key === 'Enter') {
+                      event.target.blur()
+                    }
+                  }
+                "
               />
               <div v-if="faceIdBeingTyped === face.id" class="flex flex-col w-full absolute z-10">
                 <button
