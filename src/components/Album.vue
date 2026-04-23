@@ -6,12 +6,15 @@ const { ipcRenderer } = window.require('electron')
 
 const props = defineProps<{
   folderName: string
+  displayName?: string
   thumbnail: string | undefined
   fileCount: number
   refreshFiles: () => Promise<void>
   openAlbum: (folderName: string) => void
   backgroundStyle: 'parchment' | 'black'
 }>()
+
+const isRootAlbum = props.folderName === ''
 
 const inputRef = ref<HTMLInputElement | null>(null)
 const newFolderName = ref(props.folderName)
@@ -20,6 +23,7 @@ const showRename = ref(false)
 const externalShowRename = defineModel<boolean>()
 
 const showRenameInput = () => {
+  if (isRootAlbum) return
   showRename.value = true
 }
 
@@ -81,7 +85,7 @@ const handleDelete = async () => {
       <FolderOpenIcon class="w-full absolute" style="clip-path: inset(0px 0px 75px 0px)" />
       <img v-if="props.thumbnail" :src="props.thumbnail" class="absolute w-20 bottom-11 left-6 -rotate-[20deg]" />
       <FolderOpenIcon class="w-full absolute" style="clip-path: inset(50px 0px 0 0px)" />
-      <button v-if="showRename" class="absolute top-0 -right-2 bg-transparent p-0">
+      <button v-if="showRename && !isRootAlbum" class="absolute top-0 -right-2 bg-transparent p-0">
         <XMarkIcon class="text-red-600 size-7 z-100" @click.prevent.stop="handleDelete" />
       </button>
     </a>
@@ -94,7 +98,7 @@ const handleDelete = async () => {
         @keydown.enter="showRenameInput"
         tabindex="0"
       >
-        {{ props.folderName }}
+        {{ props.displayName || props.folderName }}
         <p class="text-sm text-gray-500 font-normal ml-1">({{ props.fileCount }})</p>
       </h2>
       <textarea

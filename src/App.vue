@@ -13,11 +13,12 @@ type Settings = {
 }
 
 const folders = ref<Folders>({})
-const currentFolder = ref<string>('')
+const currentFolder = ref<string | null>(null)
 const thumbnails = ref<{ [key: string]: string }>({})
 const albumHasRenameInputOpen = ref<{ [key: string]: boolean }>({})
 const globalFaces = ref<{ [key: string]: GlobalFace[] }>({})
 const showSettingsDialog = ref(false)
+const mainFolderName = ref<string>('')
 const settings = ref<Settings>({
   defaultFolder: '',
   slideshowInterval: 10000,
@@ -29,12 +30,26 @@ const backgroundClass = computed(() => {
 })
 
 const sortedFolderNames = computed(() => {
-  return Object.keys(folders.value).sort((a, b) => a.localeCompare(b))
+  return Object.keys(folders.value)
+    .filter((name) => name !== '')
+    .sort((a, b) => a.localeCompare(b))
+})
+
+const getDisplayName = (folderName: string) => {
+  if (folderName === '') {
+    return `${mainFolderName.value} (Main)`
+  }
+  return folderName
+}
+
+const hasRootAlbum = computed(() => {
+  return '' in folders.value && folders.value[''].length > 0
 })
 
 onMounted(async () => {
   const loadedSettings = await ipcRenderer.invoke('getSettings')
   settings.value = loadedSettings
+  mainFolderName.value = await ipcRenderer.invoke('getMainFolderName')
 
   await refreshFiles()
 
@@ -92,7 +107,7 @@ const openAlbum = (folderName: string) => {
 }
 
 const closeAlbum = () => {
-  currentFolder.value = ''
+  currentFolder.value = null
 }
 
 const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
@@ -103,11 +118,22 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
 
 <template>
   <main class="relative min-h-[100vh] w-[100vw]" :class="backgroundClass">
-    <div v-if="!currentFolder" class="flex flex-wrap gap-x-12 gap-y-8 py-8 px-24">
+    <div v-if="currentFolder === null" class="flex flex-wrap gap-x-12 gap-y-8 py-8 px-24">
+      <Album
+        v-if="hasRootAlbum"
+        :folderName="''"
+        :displayName="getDisplayName('')"
+        :thumbnail="thumbnails['']"
+        :refreshFiles="refreshFiles"
+        :openAlbum="openAlbum"
+        :fileCount="folders[''].length"
+        :backgroundStyle="settings.backgroundStyle"
+      />
       <template v-for="folderName in sortedFolderNames" :key="folderName">
         <Album
           v-model="albumHasRenameInputOpen[folderName]"
-          :folderName="folderName.toString()"
+          :folderName="folderName"
+          :displayName="getDisplayName(folderName)"
           :thumbnail="thumbnails[folderName]"
           :refreshFiles="refreshFiles"
           :openAlbum="openAlbum"
@@ -123,7 +149,7 @@ const setGlobalFacesForImage = async (imageID: string, faces: GlobalFace[]) => {
       </div>
     </div>
     <ImageViewer
-      v-if="currentFolder"
+      v-if="currentFolder !== null"
       :refreshFiles="refreshFiles"
       :folders="folders"
       :currentFolder="currentFolder"

@@ -128,7 +128,7 @@ const selectImage = async (fileIndex: number) => {
     index = 0
   }
 
-  if (!props.currentFolder || !imageRef.value) return
+  if (props.currentFolder === undefined || !imageRef.value) return
 
   if (!files.value[index]) {
     const canvas = canvasRef.value

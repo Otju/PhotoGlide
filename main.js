@@ -58,9 +58,16 @@ const getFolders = () => {
   })
 }
 
+const getImagePath = (folderName, imageName) => {
+  if (folderName === '') {
+    return `${defaultFolder}\\${imageName}`
+  }
+  return `${defaultFolder}\\${folderName}\\${imageName}`
+}
+
 const moveFile = (filename, startFolder, endFolder) => {
-  var oldPath = `${defaultFolder}\\${startFolder}\\${filename}`
-  var newPath = `${defaultFolder}\\${endFolder}\\${filename}`
+  var oldPath = getImagePath(startFolder, filename)
+  var newPath = getImagePath(endFolder, filename)
   fs.rename(oldPath, newPath, function (err) {
     if (err) throw err
     console.log(`Successfully moved ${filename} from ${startFolder} to ${endFolder}`)
@@ -69,6 +76,15 @@ const moveFile = (filename, startFolder, endFolder) => {
 
 const getFileNames = () => {
   const fileNames = {}
+
+  // Add root folder images (files directly in defaultFolder)
+  const rootFiles = fs.readdirSync(defaultFolder).filter((file) => {
+    const fullPath = `${defaultFolder}\\${file}`
+    return !fs.lstatSync(fullPath).isDirectory() && fileIsViewableImage(file)
+  })
+  if (rootFiles.length > 0) {
+    fileNames[''] = rootFiles
+  }
 
   getFolders().forEach((folder) => {
     const path = `${defaultFolder}\\${folder}`
@@ -87,12 +103,8 @@ const getFileNames = () => {
   return fileNames
 }
 
-const getImagePath = (folderName, imageName) => {
-  return `${defaultFolder}\\${folderName}\\${imageName}`
-}
-
 const getImageMetadata = async (folderName, imageName) => {
-  const path = `${defaultFolder}\\${folderName}\\${imageName}`
+  const path = getImagePath(folderName, imageName)
 
   const imageMetadata = await exiftool.read(path)
 
@@ -136,7 +148,7 @@ const getImageMetadata = async (folderName, imageName) => {
 }
 
 const updateImageMetaData = async (folderName, imageName, newValue) => {
-  const path = `${defaultFolder}\\${folderName}\\${imageName}`
+  const path = getImagePath(folderName, imageName)
   try {
     // n flags skips input validation, e.g. allows incomplete dates
     await exiftool.write(path, newValue, ['-n', '-overwrite_original'])
@@ -316,6 +328,13 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('getSettings', () => {
     return getSettings()
+  })
+
+  ipcMain.handle('getMainFolderName', () => {
+    if (!defaultFolder) return ''
+    // Handle both forward and backward slashes
+    const parts = defaultFolder.split(/[/\\]/)
+    return parts[parts.length - 1] || ''
   })
 
   ipcMain.handle('saveSettings', (event, settings) => {
