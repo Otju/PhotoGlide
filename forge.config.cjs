@@ -33,6 +33,21 @@ module.exports = {
         }),
       )
     },
+    postMake: async (_forgeConfig, makeResults) => {
+      for (const result of makeResults) {
+        const version = result.packageJSON.version
+        result.artifacts = await Promise.all(
+          result.artifacts.map(async (artifact) => {
+            if (!artifact.endsWith('.AppImage')) return artifact
+            const dir = path.dirname(artifact)
+            const next = path.join(dir, `PhotoGlide-v${version}.AppImage`)
+            if (artifact !== next) await fs.rename(artifact, next)
+            return next
+          }),
+        )
+      }
+      return makeResults
+    },
   },
   makers: [
     {
@@ -45,7 +60,7 @@ module.exports = {
       platforms: ['win32'],
       config: {
         portable: {
-          artifactName: 'PhotoGlide.exe',
+          artifactName: 'Photoglide-v<%= version %>.exe',
         },
         icon: './icons/icon',
       },
