@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, protocol, globalShortcut } from 'electron'
 import fs from 'fs'
+import path from 'path'
 import Store from 'electron-store'
 import { ExifTool, exiftoolPath } from 'exiftool-vendored'
 import dayjs from 'dayjs'
@@ -46,8 +47,8 @@ const imageFileEndings = ['.png', '.jpg', '.jpeg']
 
 const exiftool = new ExifTool({
   exiftoolPath: async () => {
-    const path = await exiftoolPath()
-    return path.replace('app.asar\\node_modules\\', '')
+    const exiftoolBinPath = await exiftoolPath()
+    return exiftoolBinPath.replace(/app\.asar[\\/]+node_modules[\\/]+/, '')
   },
 })
 
@@ -62,15 +63,15 @@ const fileIsViewableImage = (fileName) => {
 
 const getFolders = () => {
   return fs.readdirSync(defaultFolder).filter((file) => {
-    return fs.lstatSync(`${defaultFolder}\\${file}`).isDirectory()
+    return fs.lstatSync(path.join(defaultFolder, file)).isDirectory()
   })
 }
 
 const getImagePath = (folderName, imageName) => {
   if (folderName === '') {
-    return `${defaultFolder}\\${imageName}`
+    return path.join(defaultFolder, imageName)
   }
-  return `${defaultFolder}\\${folderName}\\${imageName}`
+  return path.join(defaultFolder, folderName, imageName)
 }
 
 const moveFile = (filename, startFolder, endFolder) => {
@@ -87,7 +88,7 @@ const getFileNames = () => {
 
   // Add root folder images (files directly in defaultFolder)
   const rootFiles = fs.readdirSync(defaultFolder).filter((file) => {
-    const fullPath = `${defaultFolder}\\${file}`
+    const fullPath = path.join(defaultFolder, file)
     return !fs.lstatSync(fullPath).isDirectory() && fileIsViewableImage(file)
   })
   if (rootFiles.length > 0) {
@@ -95,13 +96,13 @@ const getFileNames = () => {
   }
 
   getFolders().forEach((folder) => {
-    const path = `${defaultFolder}\\${folder}`
+    const folderPath = path.join(defaultFolder, folder)
 
     if (!fileNames[folder]) {
       fileNames[folder] = []
     }
 
-    fs.readdirSync(path).forEach((file) => {
+    fs.readdirSync(folderPath).forEach((file) => {
       if (fileIsViewableImage(file)) {
         fileNames[folder].push(file)
       }
@@ -192,9 +193,12 @@ const toggleFullScreen = () => {
 }
 
 const createWindow = async () => {
+  const windowIconPath = path.join(app.getAppPath(), 'icons', '512x512.png')
+
   win = new BrowserWindow({
     width: 1000,
     height: 800,
+    icon: windowIconPath,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -342,15 +346,15 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('createFolder', (event, folderName) => {
-    fs.mkdirSync(`${defaultFolder}\\${folderName}`)
+    fs.mkdirSync(path.join(defaultFolder, folderName))
   })
 
   ipcMain.handle('renameFolder', (event, oldName, newName) => {
-    fs.renameSync(`${defaultFolder}\\${oldName}`, `${defaultFolder}\\${newName}`)
+    fs.renameSync(path.join(defaultFolder, oldName), path.join(defaultFolder, newName))
   })
 
   ipcMain.handle('deleteFolder', (event, folderName) => {
-    fs.rmdirSync(`${defaultFolder}\\${folderName}`, { recursive: true })
+    fs.rmdirSync(path.join(defaultFolder, folderName), { recursive: true })
   })
 
   ipcMain.handle('setFaces', (event, facesString) => {

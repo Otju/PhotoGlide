@@ -1,5 +1,7 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses')
 const { FuseV1Options, FuseVersion } = require('@electron/fuses')
+const path = require('path')
+const fs = require('fs/promises')
 
 module.exports = {
   packagerConfig: {
@@ -8,6 +10,30 @@ module.exports = {
     icon: './icons/icon',
   },
   rebuildConfig: {},
+  hooks: {
+    postPackage: async (_forgeConfig, packageResult) => {
+      if (packageResult.platform !== 'linux') return
+
+      await Promise.all(
+        packageResult.outputPaths.map(async (outputPath) => {
+          const wrapperPath = path.join(outputPath, 'PhotoGlide')
+          const binaryPath = path.join(outputPath, 'PhotoGlide-bin')
+
+          const wrapper = [
+            '#!/usr/bin/env bash',
+            'set -e',
+            'SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"',
+            'SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"',
+            'exec "$SCRIPT_DIR/PhotoGlide-bin" --no-sandbox "$@"',
+            '',
+          ].join('\n')
+
+          await fs.rename(wrapperPath, binaryPath)
+          await fs.writeFile(wrapperPath, wrapper, { encoding: 'utf-8', mode: 0o755 })
+        }),
+      )
+    },
+  },
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
