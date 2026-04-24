@@ -28,8 +28,20 @@ Run in local development mode (hot reload UI):
 npm run dev
 ```
 
-Build to single .exe file & installer:
+Build release artifacts:
 
 ```
 npm run build
+```
+
+This runs `electron-forge make` and produces platform-specific outputs:
+
+- Windows: `.exe` artifacts (Squirrel installer + portable `PhotoGlide.exe`)
+- Linux: `.AppImage` artifact
+
+You can also target a specific platform:
+
+```
+npx electron-forge make --platform=win32
+npx electron-forge make --platform=linux
 ```

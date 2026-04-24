@@ -11,10 +11,12 @@ module.exports = {
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
+      platforms: ['win32'],
       config: {},
     },
     {
       name: '@rabbitholesyndrome/electron-forge-maker-portable',
+      platforms: ['win32'],
       config: {
         portable: {
           artifactName: 'PhotoGlide.exe',
@@ -22,20 +24,16 @@ module.exports = {
         icon: './icons/icon',
       },
     },
-    /*
     {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
+      name: '@reforged/maker-appimage',
+      platforms: ['linux'],
+      config: {
+        options: {
+          bin: 'PhotoGlide',
+          icon: './icons/512x512.png',
+        },
+      },
     },
-    {
-      name: '@electron-forge/maker-deb',
-      config: {},
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {},
-    },
-    */
   ],
   plugins: [
     {

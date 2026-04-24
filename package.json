@@ -37,6 +37,7 @@
     "@electron-forge/plugin-fuses": "^7.6.0",
     "@electron/fuses": "^1.8.0",
     "@rabbitholesyndrome/electron-forge-maker-portable": "^0.2.0",
+    "@reforged/maker-appimage": "^5.2.0",
     "@types/deep-equal": "^1.0.4",
     "@vitejs/plugin-vue": "^5.2.1",
     "autoprefixer": "^10.4.20",

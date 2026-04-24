@@ -14,6 +14,13 @@ let win = null
 let currentViewMode = 'edit-mode'
 let isFullScreen = false
 
+// AppImage mounts a read-only filesystem, so Electron's setuid sandbox helper
+// cannot be owned by root with mode 4755 there. Force-disable Linux sandboxing
+// for packaged desktop builds to avoid startup crash.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox')
+}
+
 const getSettings = () => ({
   defaultFolder: defaultFolder || '',
   slideshowInterval,
