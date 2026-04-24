@@ -34,7 +34,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-exe
-          path: out/make/**/Photoglide-v*.exe
+          path: out/make/**/Photoglide-*.exe
 
   release:
     needs: [build-linux, build-windows]
@@ -72,4 +72,4 @@ jobs:
           body: ${{ steps.changelog.outputs.notes }}
           files: |
             linux-appimage/**/*.AppImage
-            windows-exe/**/Photoglide-v*.exe
+            windows-exe/**/Photoglide-*.exe
